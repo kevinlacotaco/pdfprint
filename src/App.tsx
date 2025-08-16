@@ -1,20 +1,29 @@
-import { createColumnHelper, flexRender, getCoreRowModel, getSortedRowModel, RowData, RowSelectionState, SortingState, useReactTable } from "@tanstack/react-table";
-import { invoke } from "@tauri-apps/api/core";
-import { useAtom, useAtomValue } from "jotai";
-import { atomWithReset, useResetAtom } from "jotai/utils";
-import { HTMLProps, useCallback, useEffect, useRef, useState } from "react";
-import "./App.css";
-import { Button } from "./components/button/Button";
-import { EditableTextCell } from "./components/table/EditableTextCell";
-import { HeaderCell } from "./components/table/HeaderCell";
-import { NumberCell } from "./components/table/NumberCell";
-import { TextCell } from "./components/table/TextCell";
-import { pdfAtom } from "./main";
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  RowData,
+  RowSelectionState,
+  SortingState,
+  useReactTable,
+} from '@tanstack/react-table';
+import { invoke } from '@tauri-apps/api/core';
+import { useAtom, useAtomValue } from 'jotai';
+import { atomWithReset, useResetAtom } from 'jotai/utils';
+import { HTMLProps, useCallback, useEffect, useRef, useState } from 'react';
+import './App.css';
+import { Button } from './components/button/Button';
+import { EditableTextCell } from './components/table/EditableTextCell';
+import { HeaderCell } from './components/table/HeaderCell';
+import { NumberCell } from './components/table/NumberCell';
+import { TextCell } from './components/table/TextCell';
+import { pdfAtom } from './main';
 import { save } from '@tauri-apps/plugin-dialog';
 
 declare module '@tanstack/react-table' {
   interface TableMeta<TData extends RowData> {
-    updateData: (rowIndex: number, columnId: string, value: unknown) => void
+    updateData: (rowIndex: number, columnId: string, value: unknown) => void;
   }
 }
 
@@ -25,24 +34,16 @@ function IndeterminateCheckbox({
   className = '',
   ...rest
 }: { indeterminate?: boolean } & HTMLProps<HTMLInputElement>) {
-  const ref = useRef<HTMLInputElement>(null!)
+  const ref = useRef<HTMLInputElement>(null!);
 
   useEffect(() => {
     if (typeof indeterminate === 'boolean') {
-      ref.current.indeterminate = !rest.checked && indeterminate
+      ref.current.indeterminate = !rest.checked && indeterminate;
     }
-  }, [ref, indeterminate])
+  }, [ref, indeterminate]);
 
-  return (
-    <input
-      type="checkbox"
-      ref={ref}
-      className={className + ' cursor-pointer'}
-      {...rest}
-    />
-  )
+  return <input type="checkbox" ref={ref} className={className + ' cursor-pointer'} {...rest} />;
 }
-
 
 export const columns = [
   columnHelper.display({
@@ -77,38 +78,27 @@ export const columns = [
   columnHelper.accessor('name', {
     size: 300,
     header: (props) => {
-      return (
-        <HeaderCell title="File Name" sorted={props.column.getIsSorted()} />
-      );
+      return <HeaderCell title="File Name" sorted={props.column.getIsSorted()} />;
     },
-    cell: (props) => (
-      <TextCell value={props.getValue()} />
-    ),
+    cell: (props) => <TextCell value={props.getValue()} />,
     sortingFn: 'alphanumeric',
   }),
   columnHelper.accessor('pages', {
     size: 100,
     maxSize: 100,
     header: (props) => {
-      return (
-        <HeaderCell title="Page Count" sorted={props.column.getIsSorted()} />
-      );
-    }, cell: (props) => (
-      <NumberCell value={props.getValue()} />
-    ),
+      return <HeaderCell title="Page Count" sorted={props.column.getIsSorted()} />;
+    },
+    cell: (props) => <NumberCell value={props.getValue()} />,
     sortingFn: 'alphanumeric',
   }),
   columnHelper.accessor('size', {
     size: 100,
     maxSize: 100,
     header: (props) => {
-      return (
-        <HeaderCell title="Size" sorted={props.column.getIsSorted()} />
-      );
+      return <HeaderCell title="Size" sorted={props.column.getIsSorted()} />;
     },
-    cell: (props) => (
-      <NumberCell type="unit" unit="byte" value={props.getValue()} />
-    ),
+    cell: (props) => <NumberCell type="unit" unit="byte" value={props.getValue()} />,
     sortingFn: 'alphanumeric',
   }),
   columnHelper.display({
@@ -116,34 +106,38 @@ export const columns = [
     maxSize: 200,
     id: 'printRange',
     header: () => {
-      return (
-        <HeaderCell title="Custom Pages" />
-      );
+      return <HeaderCell title="Custom Pages" />;
     },
     cell: (props) => {
-      return <EditableTextCell {...props} />
-    }
-  })
+      return <EditableTextCell {...props} />;
+    },
+  }),
 ];
 
 type PdfDetails = {
-  name: string,
-  pages: number,
-  size: number,
-  printRange?: string,
-}
+  name: string;
+  pages: number;
+  size: number;
+  printRange?: string;
+};
 
 type SerializedPdfDetails = {
-  name: string,
-  pages: number,
-  size: number,
-  printRange?: number[]
-}
+  name: string;
+  pages: number;
+  size: number;
+  printRange?: number[];
+};
 
 const rowSelectionAtom = atomWithReset<RowSelectionState>({});
 
-const DataTable = ({ tableData, onChange }: { tableData: PdfDetails[], onChange?: (data: PdfDetails[] | undefined) => void }) => {
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'name', desc: false }])
+const DataTable = ({
+  tableData,
+  onChange,
+}: {
+  tableData: PdfDetails[];
+  onChange?: (data: PdfDetails[] | undefined) => void;
+}) => {
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'name', desc: false }]);
 
   const [data, setData] = useState(tableData);
   const [rowSelection, setRowSelection] = useAtom(rowSelectionAtom);
@@ -154,7 +148,7 @@ const DataTable = ({ tableData, onChange }: { tableData: PdfDetails[], onChange?
         return rowSelection[idx] === true;
       });
 
-      onChange(dataToSend)
+      onChange(dataToSend);
     }
   }, [rowSelection, data]);
 
@@ -171,21 +165,20 @@ const DataTable = ({ tableData, onChange }: { tableData: PdfDetails[], onChange?
     onRowSelectionChange: setRowSelection,
     meta: {
       updateData: (rowIndex, columnId, value) => {
-        setData(old => {
+        setData((old) => {
           return old.map((row, index) => {
             if (index === rowIndex) {
               return {
                 ...old[rowIndex]!,
                 [columnId]: value,
-              }
+              };
             }
-            return row
-          })
-        })
+            return row;
+          });
+        });
       },
-    }
+    },
   });
-
 
   return (
     <table className="border-separate border-spacing-0 w-full max-w-full table-fixed">
@@ -194,19 +187,10 @@ const DataTable = ({ tableData, onChange }: { tableData: PdfDetails[], onChange?
           <tr key={headerGroup.id}>
             {headerGroup.headers.map((header) => {
               return (
-                <th
-                  key={header.id}
-                  className=" whitespace-nowrap"
-                  style={{ width: header.column.columnDef.size }}
-
-                >
+                <th key={header.id} className=" whitespace-nowrap" style={{ width: header.column.columnDef.size }}>
                   {header.isPlaceholder ? null : (
                     <div
-                      className={
-                        header.column.getCanSort()
-                          ? 'cursor-pointer select-none w-full'
-                          : 'w-full'
-                      }
+                      className={header.column.getCanSort() ? 'cursor-pointer select-none w-full' : 'w-full'}
                       onClick={header.column.getToggleSortingHandler()}
                       title={
                         header.column.getCanSort()
@@ -218,15 +202,10 @@ const DataTable = ({ tableData, onChange }: { tableData: PdfDetails[], onChange?
                           : undefined
                       }
                     >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-
+                      {flexRender(header.column.columnDef.header, header.getContext())}
                     </div>
                   )}
                 </th>
-
               );
             })}
           </tr>
@@ -236,42 +215,38 @@ const DataTable = ({ tableData, onChange }: { tableData: PdfDetails[], onChange?
         {table.getRowModel().rows.map((row) => (
           <tr key={row.id} className="even:bg-gray-200">
             {row.getVisibleCells().map((cell) => (
-              <td
-                key={cell.id}
-
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-
-              </td>
+              <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
             ))}
           </tr>
         ))}
       </tbody>
     </table>
   );
-}
+};
 
 const range = (start: number, end: number): number[] => {
-  return [...Array(end - start + 1).keys()].map(i => i + start);
-}
+  return [...Array(end - start + 1).keys()].map((i) => i + start);
+};
 
 const parsePrintRange = (printRange: string): number[] => {
-
   const parts = printRange.split(',');
 
-  return Array.from(new Set(parts.reduce((acc: number[], part: string) => {
-    if (part.includes('-')) {
-      const [start, end] = part.split('-').map(Number);
+  return Array.from(
+    new Set(
+      parts.reduce((acc: number[], part: string) => {
+        if (part.includes('-')) {
+          const [start, end] = part.split('-').map(Number);
 
-      acc = acc.concat(range(start, end));
-    } else {
-      acc.push(parseInt(part, 10));
-    }
+          acc = acc.concat(range(start, end));
+        } else {
+          acc.push(parseInt(part, 10));
+        }
 
-    return acc;
-  }, []))).sort((a, b) => a - b);
-
-}
+        return acc;
+      }, [])
+    )
+  ).sort((a, b) => a - b);
+};
 
 function App() {
   const pdfs = useAtomValue(pdfAtom);
@@ -287,7 +262,7 @@ function App() {
           serializedDetail.printRange = parsePrintRange(printRange);
         }
         return detail;
-      })
+      }),
     });
     resetRowSelection();
   }, [data]);
@@ -297,9 +272,9 @@ function App() {
       filters: [
         {
           name: 'PDFs',
-          extensions: ['pdf']
-        }
-      ]
+          extensions: ['pdf'],
+        },
+      ],
     });
 
     if (file != null) {
@@ -311,7 +286,7 @@ function App() {
             serializedDetail.printRange = parsePrintRange(printRange);
           }
           return detail;
-        })
+        }),
       });
       resetRowSelection();
     }
@@ -324,12 +299,19 @@ function App() {
       </header>
       <div className="flex-auto overflow-auto scroll-auto">
         {!isLoading && <DataTable tableData={pdfs} onChange={setData} />}
-        {isLoading && <div className="flex items-center justify-center h-full w-full"><div className="text-2xl text-center">Loading...</div></div>}
+        {isLoading && (
+          <div className="flex items-center justify-center h-full w-full">
+            <div className="text-2xl text-center">Loading...</div>
+          </div>
+        )}
       </div>
       <footer className="shrink-0 flex grow-0 basis-0 w-full space-x-1 p-2 justify-end">
-        <Button disabled={data?.length === 0} onClick={saveToFolder} variant="secondary">Save to Combined PDF</Button>
-        <Button disabled={data?.length === 0} onClick={print}>Print to Default Printer</Button>
-
+        <Button disabled={data?.length === 0} onClick={saveToFolder} variant="secondary">
+          Save to Combined PDF
+        </Button>
+        <Button disabled={data?.length === 0} onClick={print}>
+          Print to Default Printer
+        </Button>
       </footer>
     </main>
   );
