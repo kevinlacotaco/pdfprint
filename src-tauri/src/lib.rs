@@ -41,13 +41,13 @@ fn add_page_to(
     graft_map: &mut PdfGraftMap,
 ) -> Result<PdfObject, mupdf::Error> {
     let mut dst_page = destination_doc.new_dict()?;
-    let _type = dst_page.dict_put("Type", destination_doc.new_name("Page")?);
+    dst_page.dict_put("Type", destination_doc.new_name("Page")?)?;
 
     let dicts = ["MediaBox", "Rotate", "Resources", "Contents"];
 
     for dict_key in dicts {
-        if let Ok(dict) = src_page.get_dict(dict_key) {
-            let media_box = dict.ok_or(mupdf::Error::UnexpectedNullPtr)?;
+        if let Ok(Some(dict)) = src_page.get_dict(dict_key) {
+            let media_box = dict;
             let grafted = graft_map.graft_object(&media_box)?;
             dst_page.dict_put(dict_key, grafted)?;
         }
@@ -202,6 +202,41 @@ fn print_to_default(
     Ok(())
 }
 
+#[tauri::command(rename_all = "snake_case")]
+#[allow(clippy::needless_pass_by_value)]
+fn save_to_file(
+    app_handle: tauri::AppHandle,
+    pdfs: Vec<PdfPrintDetails>,
+    file: String,
+) -> Result<(), String> {
+    println!("{file:?}");
+    let state = app_handle.state::<Mutex<AppState>>();
+
+    let workspace = state
+        .lock()
+        .map_err(|e| e.to_string())?
+        .workspace
+        .clone()
+        .ok_or_else(|| "No workspace set".to_string())?;
+    let workspace_path = Path::new(&workspace);
+
+    let combined_doc_result = create_combined_pdf(workspace_path, pdfs);
+    let Ok(combined_doc) = combined_doc_result else {
+        println!("Error");
+        return Ok(());
+    };
+    let file_to_save = File::create(&file).map_err(|e| e.to_string())?;
+    let mut writer = BufWriter::new(file_to_save);
+
+    combined_doc
+        .write_to(&mut writer)
+        .map_err(|e| e.to_string())?;
+    writer.flush().map_err(|e| e.to_string())?;
+    drop(writer);
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(clippy::missing_panics_doc)]
 pub fn run() {
@@ -277,7 +312,11 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![frontend_ready, print_to_default])
+        .invoke_handler(tauri::generate_handler![
+            frontend_ready,
+            print_to_default,
+            save_to_file
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

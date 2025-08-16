@@ -10,6 +10,7 @@ import { HeaderCell } from "./components/table/HeaderCell";
 import { NumberCell } from "./components/table/NumberCell";
 import { TextCell } from "./components/table/TextCell";
 import { pdfAtom } from "./main";
+import { save } from '@tauri-apps/plugin-dialog';
 
 declare module '@tanstack/react-table' {
   interface TableMeta<TData extends RowData> {
@@ -279,7 +280,6 @@ function App() {
   const resetRowSelection = useResetAtom(rowSelectionAtom);
 
   const print = useCallback(() => {
-    console.log(data)
     invoke('print_to_default', {
       pdfs: data?.map(({ printRange, ...detail }) => {
         const serializedDetail: SerializedPdfDetails = detail;
@@ -292,6 +292,31 @@ function App() {
     resetRowSelection();
   }, [data]);
 
+  const saveToFolder = useCallback(async () => {
+    const file = await save({
+      filters: [
+        {
+          name: 'PDFs',
+          extensions: ['pdf']
+        }
+      ]
+    });
+
+    if (file != null) {
+      invoke('save_to_file', {
+        file: file,
+        pdfs: data?.map(({ printRange, ...detail }) => {
+          const serializedDetail: SerializedPdfDetails = detail;
+          if (printRange != null) {
+            serializedDetail.printRange = parsePrintRange(printRange);
+          }
+          return detail;
+        })
+      });
+      resetRowSelection();
+    }
+  }, [data]);
+
   return (
     <main className="flex flex-col h-screen bg-gray-100 items-stretch">
       <header className="w-full items-center justify-center shrink-0 grow-0 basis-0">
@@ -302,7 +327,7 @@ function App() {
         {isLoading && <div className="flex items-center justify-center h-full w-full"><div className="text-2xl text-center">Loading...</div></div>}
       </div>
       <footer className="shrink-0 flex grow-0 basis-0 w-full space-x-1 p-2 justify-end">
-        <Button disabled={data?.length === 0} onClick={() => { }} variant="secondary">Save to Combined PDF</Button>
+        <Button disabled={data?.length === 0} onClick={saveToFolder} variant="secondary">Save to Combined PDF</Button>
         <Button disabled={data?.length === 0} onClick={print}>Print to Default Printer</Button>
 
       </footer>
