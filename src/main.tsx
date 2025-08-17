@@ -1,9 +1,9 @@
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { atom, createStore, Provider } from 'jotai';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { atom, createStore, Provider } from 'jotai';
-import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/core';
 
 type PdfDetails = { name: string; pages: number; size: number };
 
