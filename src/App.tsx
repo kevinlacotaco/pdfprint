@@ -22,6 +22,7 @@ import { pdfAtom } from './main';
 import { save } from '@tauri-apps/plugin-dialog';
 
 declare module '@tanstack/react-table' {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface TableMeta<TData extends RowData> {
     updateData: (rowIndex: number, columnId: string, value: unknown) => void;
   }
