@@ -1,6 +1,6 @@
 import { SortDirection } from '@tanstack/react-table';
-import UpChevron from '../../assets/up_chevron.svg?react';
-import DownChevron from '../../assets/down_chevron.svg?react';
+import UpChevron from '../../assets/icons/icon-cheveron-up.svg?react';
+import DownChevron from '../../assets/icons/icon-cheveron-down.svg?react';
 
 export type HeaderCellProps = {
   title: string;
@@ -13,8 +13,8 @@ export const HeaderCell = ({ title, sorted = false }: HeaderCellProps) => {
     <div className="py-1.5 font-semibold">
       {title}
       {{
-        asc: <UpChevron className="inline p-1 w-6 h-6 text-gray-800 dark:text-white" />,
-        desc: <DownChevron className="inline p-1 w-6 h-6 text-gray-800 dark:text-white" />,
+        asc: <UpChevron className="inline w-6 h-6 text-gray-800 dark:text-white" />,
+        desc: <DownChevron className="inline w-6 h-6 text-gray-800 dark:text-white" />,
       }[sorted as string] ?? null}
     </div>
   );
