@@ -2,7 +2,7 @@ name: "Publish Release Artifacts"
 
 on:
   release:
-    types: [published]
+    types: [created]
 
 jobs:
   get_release_id:
