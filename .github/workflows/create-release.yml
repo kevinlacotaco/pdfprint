@@ -31,7 +31,7 @@ jobs:
         id: next_version
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: echo "tag=$(npx semantic-release  --branches main --no-ci --dry-run 2>1 | grep -oEi 'The next release version is [1234567890\.]+' | grep -oE '[1234567890\.]+')" >> $GITHUB_OUTPUT
+        run: echo "tag=v$(npx semantic-release  --branches main --no-ci --dry-run 2>1 | grep -oEi 'The next release version is [1234567890\.]+' | grep -oE '[1234567890\.]+')" >> $GITHUB_OUTPUT
   create_release:
     name: Create Release
     runs-on: ubuntu-latest
