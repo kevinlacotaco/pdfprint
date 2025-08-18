@@ -7,6 +7,7 @@ const files = ["package.json", "src-tauri/tauri.conf.json"];
 files.forEach((path) => {
   const contents = JSON.parse(readFileSync(path, { encoding: "utf-8" }));
 
-  contents.version = process.argv[2];
+  contents.version = process.argv[2].replaceAll("v", "");
+
   writeFileSync(path, JSON.stringify(contents, null, 4), { encoding: "utf-8" });
 });
