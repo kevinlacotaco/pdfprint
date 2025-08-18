@@ -15,9 +15,9 @@ jobs:
         run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
         id: extract_tag
       - name: get_release_id
-        id: create-get_release_id
+        id: get_release_id
         uses: actions/github-script@v6
-        env: 
+        env:
           TAG: ${{ steps.extract_tag.outputs.tag }}
         with:
           script: |
