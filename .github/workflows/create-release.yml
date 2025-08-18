@@ -29,6 +29,8 @@ jobs:
         run: npm clean-install
       - name: Next Version
         id: next_version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "tag=$(npx semantic-release --dry-run --branches main | grep -oE 'The next release version is [1234567890\.]+' | grep -oE '[1234567890\.]+')" >> $GITHUB_OUTPUT
   create_release:
     name: Create Release
