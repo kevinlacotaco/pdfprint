@@ -66,7 +66,7 @@ jobs:
         # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
 
       - name: setup fontist
-        uses: fontist/setup@v1
+        uses: fontist/setup@v2
       - name: install noto serif
         run: fontist install "Noto Serif"
       - name: install noto sans
