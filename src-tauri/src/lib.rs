@@ -105,7 +105,7 @@ fn create_combined_pdf(root: &Path, pdfs: Vec<PdfPrintDetails>) -> Result<PdfDoc
     for pdf_detail in pdfs {
         let pdf_path: PathBuf = root.join(PathBuf::from(pdf_detail.name));
         let pdf_doc: PdfDocument =
-            PdfDocument::open(&pdf_path.to_string_lossy()).map_err(|e| e.to_string())?;
+            PdfDocument::open(&pdf_path.to_string_lossy().as_ref()).map_err(|e| e.to_string())?;
         let range: i32 = pdf_doc.page_count().map_err(|e| e.to_string())?;
         let mut graft_map: PdfGraftMap = temp_doc.new_graft_map().map_err(|e| e.to_string())?;
 
