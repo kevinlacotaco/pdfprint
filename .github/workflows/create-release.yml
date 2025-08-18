@@ -13,6 +13,10 @@ jobs:
     outputs:
       next_version: ${{ steps.next_version.outputs.tag }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Next Version
         id: next_version
         run: echo "tag=$(npx semantic-release --dry-run --branches main | grep -oE 'The next release version is [1234567890\.]+' | grep -oE '[1234567890\.]+')" >> $GITHUB_OUTPUT
