@@ -12,11 +12,21 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       next_version: ${{ steps.next_version.outputs.tag }}
+    permissions:
+      contents: write # to be able to publish a GitHub release
+      issues: write # to be able to comment on released issues
+      pull-requests: write # to be able to comment on released pull requests
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+      - name: Install dependencies
+        run: npm clean-install
       - name: Next Version
         id: next_version
         run: echo "tag=$(npx semantic-release --dry-run --branches main | grep -oE 'The next release version is [1234567890\.]+' | grep -oE '[1234567890\.]+')" >> $GITHUB_OUTPUT
@@ -24,6 +34,7 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     needs: [next_version]
+    if: success()
     permissions:
       contents: write # to be able to publish a GitHub release
       issues: write # to be able to comment on released issues
@@ -46,6 +57,7 @@ jobs:
   get_release:
     runs-on: ubuntu-latest
     needs: ["next_version", "create_release"]
+    if: success()
     outputs:
       release_id: ${{ steps.get_release_id.outputs.result }}
     steps:
@@ -64,6 +76,7 @@ jobs:
             return data.id
   build-tauri:
     needs: [next_version, create_release, get_release]
+    if: success()
     permissions:
       contents: write
     strategy:
