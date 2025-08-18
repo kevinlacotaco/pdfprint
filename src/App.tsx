@@ -18,8 +18,8 @@ import { EditableTextCell } from './components/table/EditableTextCell';
 import { HeaderCell } from './components/table/HeaderCell';
 import { NumberCell } from './components/table/NumberCell';
 import { TextCell } from './components/table/TextCell';
-import { pdfAtom } from './main';
 import { save } from '@tauri-apps/plugin-dialog';
+import { pdfAtom } from './store';
 
 declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
