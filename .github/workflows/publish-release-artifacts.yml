@@ -65,12 +65,21 @@ jobs:
         # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
         # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
 
-      - name: setup fontist
-        uses: fontist/setup@v2
-      - name: install noto serif
-        run: fontist install "Noto Serif"
-      - name: install noto sans
-        run: fontist install "Noto Sans"
+      - name: "setup fonts"
+        if: matrix.platform == 'windows-latest'
+        shell: powershell
+        run: |
+          Expand-Archive -Path 'fonts.zip' -DestinationPath 'fonts'
+
+          $fontsPath = "C:\Windows\Fonts"
+          $sourceFontsPath = "fonts"
+
+          # Get all font files (e.g., .ttf, .otf) from the source path
+          Get-ChildItem -Path $sourceFontsPath -Include *.ttf, *.otf -Recurse | ForEach-Object {
+              $fontFile = $_.FullName
+              $fontFileName = $_.Name
+              Copy-Item -Path $fontFile -Destination "$fontsPath\$fontFileName" -Force
+          }
 
       - name: install frontend dependencies
         run: npm install
