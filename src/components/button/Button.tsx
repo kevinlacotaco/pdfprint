@@ -20,7 +20,6 @@ export const Button = ({
   title,
   children,
 }: ButtonProps) => {
-  // text-center justify-center items-center
   return (
     <button
       className={classNames(
@@ -35,7 +34,13 @@ export const Button = ({
       title={title}
       disabled={disabled}
     >
-      <span className="text-center justify-center items-center flex relative w-full grow px-5 py-3">{children}</span>
+      <span
+        className={classNames('text-center justify-center items-center flex relative w-full grow', {
+          'px-5 py-3': size === 'md',
+        })}
+      >
+        {children}
+      </span>
     </button>
   );
 };
