@@ -1,8 +1,6 @@
 name: "Publish Release Artifacts"
 
-on:
-  release:
-    types: [created]
+on: release
 
 jobs:
   get_release_id:
