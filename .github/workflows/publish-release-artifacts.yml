@@ -22,7 +22,7 @@ jobs:
             const { data } = await github.rest.repos.getReleaseByTag({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              tag: PROCESS.env.TAG
+              tag: process.env.TAG
             })
             return data.id
   build-tauri:
