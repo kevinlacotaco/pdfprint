@@ -65,6 +65,13 @@ jobs:
         # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
         # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
 
+      - name: setup fontist
+        uses: fontist/setup@v1
+      - name: install noto serif
+        run: fontist install "Noto Serif"
+      - name: install noto sans
+        run: fontist install "Noto Sans"
+
       - name: install frontend dependencies
         run: npm install
 
