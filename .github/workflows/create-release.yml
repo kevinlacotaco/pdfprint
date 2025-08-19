@@ -130,7 +130,6 @@ jobs:
           path: mupdf-sys
           sparse-checkout: |
             resources/fonts
-          ref: a895aab
 
       - name: move fonts to cargo src
         if: matrix.platform == 'windows-latest'
