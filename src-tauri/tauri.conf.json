@@ -22,6 +22,7 @@
     }
   },
   "bundle": {
+    "createUpdaterArtifacts": true,
     "active": true,
     "targets": "all",
     "icon": [
@@ -31,5 +32,13 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDE5MEFGRUQwMjYwODRCNzEKUldSeFN3Z20wUDRLR2JXcWZtWEhWa3hWYnBnZENRdmpEdjNoakVOV2d5cCtMUU5jcUtVYTB3SVMK",
+      "endpoints": [
+        "https://github.com/kevinlacotaco/pdfprint/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

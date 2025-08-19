@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use tauri_plugin_updater::UpdaterExt;
 use tempfile::NamedTempFile;
 
 use std::fs::read_dir;
@@ -238,12 +239,33 @@ fn save_to_file(
     Ok(())
 }
 
+async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
+    if let Some(update) = app.updater()?.check().await? {
+        let mut downloaded = 0;
+
+        // alternatively we could also call update.download() and update.install() separately
+        update
+            .download_and_install(
+                |chunk_length, _content_length| {
+                    downloaded += chunk_length;
+                },
+                || {},
+            )
+            .await?;
+
+        app.restart();
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(clippy::missing_panics_doc)]
 pub fn run() {
     #[allow(clippy::expect_used)]
     #[allow(clippy::large_stack_frames)]
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Mutex::new(AppState::default()))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -310,6 +332,11 @@ pub fn run() {
                     }
                 });
             }
+
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let _ = update(handle).await;
+            });
 
             Ok(())
         })
