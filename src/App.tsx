@@ -46,7 +46,7 @@ function IndeterminateCheckbox({
   return <input type="checkbox" ref={ref} className={className + ' cursor-pointer'} {...rest} />;
 }
 
-export const columns = [
+const columns = [
   columnHelper.display({
     id: 'select',
     size: 50,
