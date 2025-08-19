@@ -1,5 +1,5 @@
 use mupdf::pdf::{PdfDocument, PdfGraftMap, PdfObject};
-use mupdf::{Document, Size};
+use mupdf::Size;
 use printers::common::base::job::PrinterJobOptions;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -83,7 +83,8 @@ fn process_folder(app_handle: &tauri::AppHandle) -> Result<(), String> {
                 let name: String = dir_entry.file_name().to_string_lossy().to_string();
                 let metadata: std::fs::Metadata = dir_entry.metadata().ok()?;
                 let size: u64 = metadata.len();
-                let document = Document::open(&dir_entry.path().as_path()).ok()?;
+                let document =
+                    PdfDocument::open(&dir_entry.path().as_path().to_string_lossy()).ok()?;
 
                 let pages = document.page_count().unwrap_or(0);
 
