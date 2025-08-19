@@ -117,21 +117,27 @@ jobs:
         # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
         # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
 
-      - name: "setup fonts"
-        if: matrix.platform == 'windows-latest'
-        shell: powershell
+      - name: install cargo deps
+        working-directory: src-tauri
         run: |
-          Expand-Archive -Path 'fonts.zip' -DestinationPath 'fonts'
+          cargo check
 
-          $fontsPath = "C:\Windows\Fonts"
-          $sourceFontsPath = "fonts"
+      - name: clone required fonts
+        if: matrix.platform == 'windows-latest'
+        uses: actions/checkout@v5
+        with:
+          repository: ArtifexSoftware/mupdf
+          path: mupdf-sys
+          sparse-checkout: |
+            resources/fonts
+          ref: a895aab
 
-          # Get all font files (e.g., .ttf, .otf) from the source path
-          Get-ChildItem -Path $sourceFontsPath -Include *.ttf, *.otf -Recurse | ForEach-Object {
-              $fontFile = $_.FullName
-              $fontFileName = $_.Name
-              Copy-Item -Path $fontFile -Destination "$fontsPath\$fontFileName" -Force
-          }
+      - name: move fonts to cargo src
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        run: |
+          mupdf_path=$(find $HOME/.cargo -type d -name '*mupdf-sys-*')
+          cp -R mupdf-sys/resources/fonts $mupdf_path/mupdf/resources/fonts
 
       - name: install frontend dependencies
         run: npm install
