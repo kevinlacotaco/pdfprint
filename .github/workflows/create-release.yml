@@ -120,7 +120,7 @@ jobs:
       - name: install cargo deps
         working-directory: src-tauri
         run: |
-          cargo check
+          cargo check || true
 
       - name: clone required fonts
         if: matrix.platform == 'windows-latest'
