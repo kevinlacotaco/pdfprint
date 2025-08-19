@@ -254,6 +254,7 @@ function App() {
   const isLoading = pdfs == null || pdfs.length === 0;
   const [data, setData] = useState<PdfDetails[]>();
   const resetRowSelection = useResetAtom(rowSelectionAtom);
+  const isDisabled = data == null || data.length === 0;
 
   const print = useCallback(() => {
     invoke('print_to_default', {
@@ -307,10 +308,10 @@ function App() {
         )}
       </div>
       <footer className="shrink-0 flex grow-0 basis-0 w-full space-x-1 p-2 justify-end">
-        <Button disabled={data?.length === 0} onClick={saveToFolder} variant="secondary">
+        <Button disabled={isDisabled} onClick={saveToFolder} variant="secondary">
           Save to Combined PDF
         </Button>
-        <Button disabled={data?.length === 0} onClick={print}>
+        <Button disabled={isDisabled} onClick={print}>
           Print to Default Printer
         </Button>
       </footer>
