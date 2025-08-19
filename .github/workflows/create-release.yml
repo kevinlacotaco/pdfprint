@@ -135,8 +135,10 @@ jobs:
         if: matrix.platform == 'windows-latest'
         shell: bash
         run: |
-          mupdf_path=$(find $HOME/.cargo -type d -name '*mupdf-sys-*')
+          mupdf_path=$(find $CARGO_HOME -type d -name '*mupdf-sys-*')
+          echo $mupdf_path
           cp -R mupdf-sys/resources/fonts $mupdf_path/mupdf/resources/fonts
+          ls -lR $mupdf_path/mupdf
 
       - name: install frontend dependencies
         run: npm install
