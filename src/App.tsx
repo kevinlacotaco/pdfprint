@@ -251,7 +251,8 @@ const parsePrintRange = (printRange: string): number[] => {
 
 function App() {
   const pdfs = useAtomValue(pdfAtom);
-  const isLoading = pdfs == null || pdfs.length === 0;
+  const isInitial = pdfs == null;
+  const emptyState = pdfs != null && pdfs.length === 0;
   const [data, setData] = useState<PdfDetails[]>();
   const resetRowSelection = useResetAtom(rowSelectionAtom);
   const isDisabled = data == null || data.length === 0;
@@ -300,10 +301,15 @@ function App() {
         <h1 className="text-3xl font-bold underline text-center">Pet Print PDF</h1>
       </header>
       <div className="flex-auto overflow-auto scroll-auto">
-        {!isLoading && <DataTable tableData={pdfs} onChange={setData} />}
-        {isLoading && (
+        {!isInitial && !emptyState && <DataTable tableData={pdfs} onChange={setData} />}
+        {emptyState && (
           <div className="flex items-center justify-center h-full w-full">
-            <div className="text-2xl text-center">Loading...</div>
+            <div className="text-2xl text-center">No PDFs within the folder</div>
+          </div>
+        )}
+        {isInitial && (
+          <div className="flex items-center justify-center h-full w-full">
+            <div className="text-2xl text-center">Select a folder to view PDFs</div>
           </div>
         )}
       </div>

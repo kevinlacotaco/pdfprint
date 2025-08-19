@@ -4,7 +4,7 @@ import { atom, createStore } from 'jotai';
 
 type PdfDetails = { name: string; pages: number; size: number };
 
-export const pdfAtom = atom<PdfDetails[]>([]);
+export const pdfAtom = atom<PdfDetails[] | null>(null);
 
 const setupEvents = async (store: ReturnType<typeof createStore>) => {
   try {
