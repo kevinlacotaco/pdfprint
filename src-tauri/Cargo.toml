@@ -4,6 +4,11 @@ version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
+keywords = ["pdf", "printing", "combine"]
+repository = "https://github.com/kevinlacotaco/pdfprint"
+readme = "README.md"
+license = "MIT"
+categories = ["filesystem"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -44,8 +49,13 @@ tempfile = "3.20.0"
 unwrap_used = "warn"
 expect_used = "warn"
 panic = "warn"
-pedantic = "warn"
-nursery = "warn"
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+single_call_fn = "allow"
+needless_return = "allow"
+implicit_return = "deny"
+multiple_crate_versions = "allow"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"

@@ -54,7 +54,7 @@ fn add_page_to(
         }
     }
 
-    destination_doc.add_object(&dst_page)
+    return destination_doc.add_object(&dst_page);
 }
 
 fn process_folder(app_handle: &tauri::AppHandle) -> Result<(), String> {
@@ -63,24 +63,26 @@ fn process_folder(app_handle: &tauri::AppHandle) -> Result<(), String> {
 
     let workspace = state
         .lock()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| return e.to_string())?
         .workspace
         .clone()
-        .ok_or_else(|| "No workspace set".to_string())?;
+        .ok_or_else(|| return "No workspace set".to_string())?;
     let workspace_path = Path::new(&workspace);
 
-    let entries: std::fs::ReadDir = read_dir(workspace_path).map_err(|e| e.to_string())?;
+    let entries: std::fs::ReadDir = read_dir(workspace_path).map_err(|e| return e.to_string())?;
 
     let pdfs: Vec<PdfDetails> = entries
         .filter(|entry| {
-            entry.as_ref().is_ok_and(|entry| {
-                file_utils::get_extension_from_filename(&entry.file_name().to_string_lossy())
-                    .unwrap_or("")
-                    == "pdf"
-            })
+            return entry.as_ref().is_ok_and(|entry| {
+                return file_utils::get_extension_from_filename(
+                    &entry.file_name().to_string_lossy(),
+                )
+                .unwrap_or("")
+                    == "pdf";
+            });
         })
         .filter_map(|entry: Result<std::fs::DirEntry, std::io::Error>| {
-            entry.map_or(None, |dir_entry| {
+            return entry.map_or(None, |dir_entry| {
                 let name: String = dir_entry.file_name().to_string_lossy().to_string();
                 let metadata: std::fs::Metadata = dir_entry.metadata().ok()?;
                 let size: u64 = metadata.len();
@@ -89,16 +91,16 @@ fn process_folder(app_handle: &tauri::AppHandle) -> Result<(), String> {
 
                 let pages = document.page_count().unwrap_or(0);
 
-                Some(PdfDetails { name, pages, size })
-            })
+                return Some(PdfDetails { name, pages, size });
+            });
         })
         .collect();
 
     handle_clone
         .emit("folder-processed", &pdfs)
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| return e.to_string())?;
 
-    Ok(())
+    return Ok(());
 }
 
 fn create_combined_pdf(root: &Path, pdfs: Vec<PdfPrintDetails>) -> Result<PdfDocument, String> {
@@ -107,22 +109,23 @@ fn create_combined_pdf(root: &Path, pdfs: Vec<PdfPrintDetails>) -> Result<PdfDoc
     for pdf_detail in pdfs {
         let pdf_path: PathBuf = root.join(PathBuf::from(pdf_detail.name));
         let pdf_doc: PdfDocument =
-            PdfDocument::open(&pdf_path.to_string_lossy()).map_err(|e| e.to_string())?;
-        let range: i32 = pdf_doc.page_count().map_err(|e| e.to_string())?;
-        let mut graft_map: PdfGraftMap = temp_doc.new_graft_map().map_err(|e| e.to_string())?;
+            PdfDocument::open(&pdf_path.to_string_lossy()).map_err(|e| return e.to_string())?;
+        let range: i32 = pdf_doc.page_count().map_err(|e| return e.to_string())?;
+        let mut graft_map: PdfGraftMap =
+            temp_doc.new_graft_map().map_err(|e| return e.to_string())?;
 
         let default_vec = (0..range).collect();
 
         let pages = pdf_detail.print_range.unwrap_or(default_vec);
 
         for i in &pages {
-            let page: PdfObject = pdf_doc.find_page(*i).map_err(|e| e.to_string())?;
+            let page: PdfObject = pdf_doc.find_page(*i).map_err(|e| return e.to_string())?;
 
-            let obj: PdfObject =
-                add_page_to(&mut temp_doc, &page, &mut graft_map).map_err(|e| e.to_string())?;
+            let obj: PdfObject = add_page_to(&mut temp_doc, &page, &mut graft_map)
+                .map_err(|e| return e.to_string())?;
             temp_doc
                 .insert_page(temp_doc.page_count().unwrap_or(0), &obj)
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| return e.to_string())?;
         }
 
         if pages.len() % 2 == 1 {
@@ -130,7 +133,7 @@ fn create_combined_pdf(root: &Path, pdfs: Vec<PdfPrintDetails>) -> Result<PdfDoc
         }
     }
 
-    Ok(temp_doc)
+    return Ok(temp_doc);
 }
 
 #[tauri::command]
@@ -149,28 +152,28 @@ fn print_to_default(
 
     let workspace = state
         .lock()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| return e.to_string())?
         .workspace
         .clone()
-        .ok_or_else(|| "No workspace set".to_string())?;
+        .ok_or_else(|| return "No workspace set".to_string())?;
     let workspace_path = Path::new(&workspace);
 
     let combined_doc = create_combined_pdf(workspace_path, pdfs)?;
 
     // Create a temporary file to then send to a printer
-    let file = NamedTempFile::with_suffix(".pdf").map_err(|e| e.to_string())?;
+    let file = NamedTempFile::with_suffix(".pdf").map_err(|e| return e.to_string())?;
     let real_file = file.as_file();
     let mut writer = BufWriter::new(real_file);
     let file_path = file.path().to_owned();
 
     combined_doc
         .write_to(&mut writer)
-        .map_err(|e| e.to_string())?;
-    writer.flush().map_err(|e| e.to_string())?;
+        .map_err(|e| return e.to_string())?;
+    writer.flush().map_err(|e| return e.to_string())?;
     drop(writer);
 
     let def_printer = printers::get_default_printer()
-        .ok_or_else(|| "Could not get default printer".to_string())?;
+        .ok_or_else(|| return "Could not get default printer".to_string())?;
 
     let job = def_printer.print_file(
         &file_path.to_string_lossy(),
@@ -179,14 +182,16 @@ fn print_to_default(
             raw_properties: &[],
         },
     )?;
-    file.keep().map_err(|e| e.to_string())?;
+    file.keep().map_err(|e| return e.to_string())?;
 
     tauri::async_runtime::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_millis(500));
 
         for _i in 0..10 {
             let active_jobs = def_printer.get_active_jobs();
-            let job_is_active = active_jobs.iter().any(|active_job| active_job.id == job);
+            let job_is_active = active_jobs
+                .iter()
+                .any(|active_job| return active_job.id == job);
             if job_is_active {
                 println!("Active Jobs: {active_jobs:?}");
 
@@ -201,7 +206,7 @@ fn print_to_default(
         drop(interval);
     });
 
-    Ok(())
+    return Ok(());
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -216,10 +221,10 @@ fn save_to_file(
 
     let workspace = state
         .lock()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| return e.to_string())?
         .workspace
         .clone()
-        .ok_or_else(|| "No workspace set".to_string())?;
+        .ok_or_else(|| return "No workspace set".to_string())?;
     let workspace_path = Path::new(&workspace);
 
     let combined_doc_result = create_combined_pdf(workspace_path, pdfs);
@@ -227,16 +232,16 @@ fn save_to_file(
         println!("Error");
         return Ok(());
     };
-    let file_to_save = File::create(&file).map_err(|e| e.to_string())?;
+    let file_to_save = File::create(&file).map_err(|e| return e.to_string())?;
     let mut writer = BufWriter::new(file_to_save);
 
     combined_doc
         .write_to(&mut writer)
-        .map_err(|e| e.to_string())?;
-    writer.flush().map_err(|e| e.to_string())?;
+        .map_err(|e| return e.to_string())?;
+    writer.flush().map_err(|e| return e.to_string())?;
     drop(writer);
 
-    Ok(())
+    return Ok(());
 }
 
 async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
@@ -256,7 +261,7 @@ async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
         app.restart();
     }
 
-    Ok(())
+    return Ok(());
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -265,14 +270,14 @@ pub fn run() {
     #[allow(clippy::expect_used)]
     #[allow(clippy::large_stack_frames)]
     tauri::Builder::default()
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(Mutex::new(AppState::default()))
+        //.plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app: &mut tauri::App| {
             let app_data = PathResolver::app_data_dir(app.path())
-                .map_err(|_| "Failed to get app data directory".to_string())?;
+                .map_err(|_| return "Failed to get app data directory".to_string())?;
             let workspace_json = app_data.join("workspace.json");
 
             {
@@ -306,7 +311,7 @@ pub fn run() {
                 }
             }
 
-            let _ = menu::setup_menu(app).map_err(|_| "Failed to setup menu".to_string());
+            let _ = menu::setup_menu(app).map_err(|_| return "Failed to setup menu".to_string());
 
             {
                 let handle_clone = app.handle().clone();
@@ -338,7 +343,7 @@ pub fn run() {
                 let _ = update(handle).await;
             });
 
-            Ok(())
+            return Ok(());
         })
         .invoke_handler(tauri::generate_handler![
             frontend_ready,
