@@ -215,7 +215,14 @@ const DataTable = ({
       </thead>
       <tbody>
         {table.getRowModel().rows.map((row) => (
-          <tr key={row.id} onClick={row.getToggleSelectedHandler()} className="even:bg-gray-200">
+          <tr
+            key={row.id}
+            onClick={row.getToggleSelectedHandler()}
+            className={classNames({
+              'odd:bg-white even:bg-gray-200': !row.getIsSelected(),
+              'odd:bg-blue-100 even:bg-blue-200': row.getIsSelected(),
+            })}
+          >
             {row.getVisibleCells().map((cell) => (
               <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
             ))}
