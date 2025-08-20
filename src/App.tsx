@@ -218,7 +218,7 @@ const DataTable = ({
           <tr
             key={row.id}
             onClick={row.getToggleSelectedHandler()}
-            className={classNames({
+            className={classNames('cursor-pointer', {
               'odd:bg-white even:bg-gray-200': !row.getIsSelected(),
               'odd:bg-blue-100 even:bg-blue-200': row.getIsSelected(),
             })}
