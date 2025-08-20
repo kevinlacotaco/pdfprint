@@ -192,7 +192,11 @@ const DataTable = ({
                 <th key={header.id} className=" whitespace-nowrap" style={{ width: header.column.columnDef.size }}>
                   {header.isPlaceholder ? null : (
                     <div
-                      className={header.column.getCanSort() ? 'cursor-pointer select-none w-full' : 'w-full'}
+                      className={
+                        header.column.getCanSort()
+                          ? 'cursor-pointer select-none w-full items-center justify-center flex'
+                          : 'w-full items-center justify-center flex'
+                      }
                       onClick={header.column.getToggleSortingHandler()}
                       title={
                         header.column.getCanSort()
