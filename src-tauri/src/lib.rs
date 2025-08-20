@@ -193,11 +193,8 @@ fn print_to_default(
                 .iter()
                 .any(|active_job| return active_job.id == job);
             if job_is_active {
-                println!("Active Jobs: {active_jobs:?}");
-
                 interval.tick().await;
             } else {
-                println!("Printing completed");
                 let _ = app_handle.emit("printing_completed", ());
                 break;
             }
@@ -216,7 +213,6 @@ fn save_to_file(
     pdfs: Vec<PdfPrintDetails>,
     file: String,
 ) -> Result<(), String> {
-    println!("{file:?}");
     let state = app_handle.state::<Mutex<AppState>>();
 
     let workspace = state
@@ -229,7 +225,7 @@ fn save_to_file(
 
     let combined_doc_result = create_combined_pdf(workspace_path, pdfs);
     let Ok(combined_doc) = combined_doc_result else {
-        println!("Error");
+        // Swallow error, just do not try to write
         return Ok(());
     };
     let file_to_save = File::create(&file).map_err(|e| return e.to_string())?;

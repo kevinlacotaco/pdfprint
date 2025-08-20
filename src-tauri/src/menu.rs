@@ -39,12 +39,9 @@ pub fn setup_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
     // listen for menu item click events
     app.on_menu_event(
-        move |app: &tauri::AppHandle, event: tauri::menu::MenuEvent| match event.id().0.as_str() {
-            "open-folder" => {
+        move |app: &tauri::AppHandle, event: tauri::menu::MenuEvent| {
+            if event.id().0.as_str() == "open-folder" {
                 open_folder_handler(app);
-            }
-            _ => {
-                println!("Unknown menu item clicked: {}", event.id().0);
             }
         },
     );
