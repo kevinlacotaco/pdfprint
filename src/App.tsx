@@ -20,6 +20,7 @@ import { NumberCell } from './components/table/NumberCell';
 import { TextCell } from './components/table/TextCell';
 import { save } from '@tauri-apps/plugin-dialog';
 import { pdfAtom } from './store';
+import classNames from 'classnames';
 
 declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -43,7 +44,7 @@ function IndeterminateCheckbox({
     }
   }, [ref, indeterminate]);
 
-  return <input type="checkbox" ref={ref} className={className + ' cursor-pointer'} {...rest} />;
+  return <input type="checkbox" ref={ref} className={classNames('w-4 h-4 cursor-pointer', className)} {...rest} />;
 }
 
 const columns = [
