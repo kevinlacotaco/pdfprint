@@ -3054,6 +3054,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-updater",
  "tempfile",
+ "time",
  "tokio",
 ]
 

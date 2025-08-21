@@ -1,3 +1,4 @@
+use core::fmt;
 use mupdf::pdf::{PdfDocument, PdfGraftMap, PdfObject};
 use mupdf::Size;
 use printers::common::base::job::PrinterJobOptions;
@@ -5,10 +6,13 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
+use tauri_plugin_log::fern::FormatCallback;
+use tauri_plugin_log::TimezoneStrategy;
 use tauri_plugin_updater::UpdaterExt;
 use tempfile::NamedTempFile;
+use time::macros::format_description;
 
-use log::{error, info};
+use log::{error, info, Record};
 use std::fs::{create_dir_all, exists, read_dir};
 use std::time::Duration;
 use tauri::path::PathResolver;
@@ -265,6 +269,27 @@ async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
     return Ok(());
 }
 
+fn formatter(out: FormatCallback, message: &fmt::Arguments, record: &Record) {
+    let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
+
+    out.finish(format_args!(
+        "[{}][{}][{}:{}][{}] {}",
+        TimezoneStrategy::UseUtc
+            .get_now()
+            .format(&format)
+            .as_ref()
+            .map_or("no date", |t| return t),
+        record.target(),
+        record.file().map_or("not found", |f| return f),
+        record
+            .line()
+            .as_ref()
+            .map_or("no line".to_string(), |l| return l.to_string()),
+        record.level(),
+        message
+    ));
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(clippy::missing_panics_doc)]
 pub fn run() {
@@ -274,6 +299,7 @@ pub fn run() {
         .plugin(
             tauri_plugin_log::Builder::new()
                 .max_file_size(50_000 /* bytes */)
+                .format(formatter)
                 .level(log::LevelFilter::Info)
                 .build(),
         )
@@ -356,7 +382,7 @@ pub fn run() {
                                 Err(err) => {
                                     error!("{err}");
                                 }
-                            };
+                            }
                         }
                     }
                 });

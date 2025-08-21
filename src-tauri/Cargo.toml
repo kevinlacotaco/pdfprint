@@ -45,6 +45,7 @@ tokio = { version = "1.47.1", features = ["time"] }
 tempfile = "3.20.0"
 tauri-plugin-log = "2"
 log = "0.4.27"
+time = { version = "0.3.41", features = ["formatting"] }
 
 
 [lints.clippy]
