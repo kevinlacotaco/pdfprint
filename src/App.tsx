@@ -18,7 +18,7 @@ import { EditableTextCell } from './components/table/EditableTextCell';
 import { HeaderCell } from './components/table/HeaderCell';
 import { NumberCell } from './components/table/NumberCell';
 import { TextCell } from './components/table/TextCell';
-import { save } from '@tauri-apps/plugin-dialog';
+import { open, save } from '@tauri-apps/plugin-dialog';
 import { pdfAtom } from './store';
 import classNames from 'classnames';
 
@@ -307,6 +307,17 @@ function App() {
     }
   }, [data]);
 
+  const selectFolder = useCallback(async () => {
+    const file = await open({
+      multiple: false,
+      directory: true,
+    });
+
+    if (file != null) {
+      invoke('select_workspace', { file });
+    }
+  }, []);
+
   return (
     <main className="flex flex-col h-screen bg-gray-100 items-stretch">
       <header className="w-full items-center justify-center shrink-0 grow-0 basis-0">
@@ -320,8 +331,9 @@ function App() {
           </div>
         )}
         {isInitial && (
-          <div className="flex items-center justify-center h-full w-full">
+          <div className="flex flex-col space-y-3 items-center justify-center h-full w-full">
             <div className="text-2xl text-center">Select a folder to view PDFs</div>
+            <Button onClick={selectFolder}>Select Folder</Button>
           </div>
         )}
       </div>

@@ -309,6 +309,42 @@ fn load_workspace(app_handle: &tauri::AppHandle, workspace_json: &PathBuf) {
     }
 }
 
+fn folder_chosen(app_handle: &tauri::AppHandle, path: String, workspace_json: &PathBuf) {
+    let handle_clone = app_handle.clone();
+    let state = handle_clone.state::<Mutex<AppState>>();
+    let locked = state.lock();
+
+    if let Ok(mut mut_state) = locked {
+        mut_state.workspace = Some(path);
+
+        match File::create(workspace_json) {
+            Ok(file) => {
+                let mut writer = BufWriter::new(file);
+                if matches!(serde_json::to_writer(&mut writer, &*mut_state), Ok(())) {
+                    drop(mut_state);
+                    if matches!(writer.flush(), Ok(())) {
+                        let _ = handle_clone.emit("state-updated", ());
+                    }
+                }
+            }
+            Err(err) => {
+                error!("{err}");
+            }
+        }
+    }
+}
+
+#[tauri::command(rename_all = "snake_case")]
+#[allow(clippy::needless_pass_by_value)]
+fn select_workspace(app_handle: tauri::AppHandle, file: String) -> Result<(), String> {
+    let app_data = PathResolver::app_data_dir(app_handle.path())
+        .map_err(|_| return "Failed to get app data directory".to_string())?;
+    let workspace_json = app_data.join("workspace.json");
+    folder_chosen(&app_handle, file, &workspace_json);
+
+    return Ok(());
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(clippy::missing_panics_doc)]
 pub fn run() {
@@ -363,30 +399,7 @@ pub fn run() {
                 let handle_clone = app.handle().clone();
                 app.handle().listen("folder-chosen", move |event| {
                     if let Ok(path) = serde_json::from_str::<String>(event.payload()) {
-                        let state = handle_clone.state::<Mutex<AppState>>();
-                        let locked = state.lock();
-
-                        if let Ok(mut mut_state) = locked {
-                            mut_state.workspace = Some(path);
-
-                            match File::create(&workspace_json) {
-                                Ok(file) => {
-                                    let mut writer = BufWriter::new(file);
-                                    if matches!(
-                                        serde_json::to_writer(&mut writer, &*mut_state),
-                                        Ok(())
-                                    ) {
-                                        drop(mut_state);
-                                        if matches!(writer.flush(), Ok(())) {
-                                            let _ = handle_clone.emit("state-updated", ());
-                                        }
-                                    }
-                                }
-                                Err(err) => {
-                                    error!("{err}");
-                                }
-                            }
-                        }
+                        folder_chosen(&handle_clone, path, &workspace_json);
                     }
                 });
             }
@@ -403,7 +416,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             frontend_ready,
             print_to_default,
-            save_to_file
+            save_to_file,
+            select_workspace
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
