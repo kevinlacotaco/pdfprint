@@ -1,7 +1,9 @@
+use log::{error, info};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Emitter;
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_opener::OpenerExt;
 
 fn open_folder_handler(app: &tauri::AppHandle) {
     let handle_clone: tauri::AppHandle = app.app_handle().clone();
@@ -19,7 +21,7 @@ fn open_folder_handler(app: &tauri::AppHandle) {
 
 pub fn setup_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let open_folder = MenuItemBuilder::new("Open Folder...")
-        .id("open-folder")
+        .id("open_folder")
         .accelerator("CmdOrCtrl+O")
         .build(app)?;
 
@@ -33,15 +35,37 @@ pub fn setup_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .quit()
         .build()?;
 
-    let menu = MenuBuilder::new(app).items(&[&file_submenu]).build()?;
+    let view_logs = MenuItemBuilder::new("View Logs...")
+        .id("view_logs")
+        .build(app)?;
+
+    let help_submenu = SubmenuBuilder::new(app, "Help").item(&view_logs).build()?;
+
+    let menu = MenuBuilder::new(app)
+        .items(&[&file_submenu, &help_submenu])
+        .build()?;
 
     app.set_menu(menu)?;
 
     // listen for menu item click events
     app.on_menu_event(
-        move |app: &tauri::AppHandle, event: tauri::menu::MenuEvent| {
-            if event.id().0.as_str() == "open-folder" {
+        move |app: &tauri::AppHandle, event: tauri::menu::MenuEvent| match event.id().0.as_str() {
+            "open_folder" => {
                 open_folder_handler(app);
+            }
+            "view_logs" => {
+                info!("Opening logs");
+                if let Ok(path) = app.app_handle().path().app_log_dir() {
+                    let app_name = &app.app_handle().package_info().name;
+                    let log_path = path.join(format!("{app_name}.log"));
+
+                    let _ = app
+                        .opener()
+                        .open_path(log_path.to_string_lossy(), None::<&str>);
+                }
+            }
+            _ => {
+                error!("Unknown option selected: {}", event.id().0.as_str());
             }
         },
     );
