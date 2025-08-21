@@ -13,7 +13,7 @@ use tempfile::NamedTempFile;
 use time::macros::format_description;
 
 use log::{error, info, Record};
-use std::fs::{create_dir_all, exists, read_dir};
+use std::fs::{create_dir_all, read_dir};
 use std::time::Duration;
 use tauri::path::PathResolver;
 use tauri::{Emitter, Listener, Manager};
@@ -331,13 +331,10 @@ pub fn run() {
             let app_data = PathResolver::app_data_dir(app.path())
                 .map_err(|_| return "Failed to get app data directory".to_string())?;
             let workspace_json = app_data.join("workspace.json");
-            let app_data_path = app_data.as_path();
 
-            if !exists(app_data_path).unwrap_or(false) {
-                info!("App Data Dir does not exist. Creating it");
-                if let Err(err) = create_dir_all(app_data_path) {
-                    error!("{err}");
-                }
+            if !app_data.exists() {
+                info!("No app data directory found. Creating it.");
+                create_dir_all(&app_data)?;
             }
 
             {
