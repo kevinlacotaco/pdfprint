@@ -9,11 +9,10 @@ use tauri_plugin_updater::UpdaterExt;
 use tempfile::NamedTempFile;
 
 use log::{error, info};
-use std::fs::read_dir;
+use std::fs::{create_dir_all, exists, read_dir};
 use std::time::Duration;
 use tauri::path::PathResolver;
 use tauri::{Emitter, Listener, Manager};
-use tauri_plugin_log::{Target, TargetKind};
 
 mod file_utils;
 mod menu;
@@ -287,6 +286,12 @@ pub fn run() {
             let app_data = PathResolver::app_data_dir(app.path())
                 .map_err(|_| return "Failed to get app data directory".to_string())?;
             let workspace_json = app_data.join("workspace.json");
+            let app_data_path = app_data.as_path();
+
+            if exists(app_data_path).is_err() {
+                info!("App Data Dir does not exist. Creating it");
+                let _ = create_dir_all(app_data_path);
+            }
 
             {
                 let handle_clone = app.handle().clone();
@@ -335,16 +340,23 @@ pub fn run() {
                         if let Ok(mut mut_state) = locked {
                             mut_state.workspace = Some(path);
 
-                            if let Ok(file) = File::create(&workspace_json) {
-                                let mut writer = BufWriter::new(file);
-                                if matches!(serde_json::to_writer(&mut writer, &*mut_state), Ok(()))
-                                {
-                                    drop(mut_state);
-                                    if matches!(writer.flush(), Ok(())) {
-                                        let _ = handle_clone.emit("state-updated", ());
+                            match File::create(&workspace_json) {
+                                Ok(file) => {
+                                    let mut writer = BufWriter::new(file);
+                                    if matches!(
+                                        serde_json::to_writer(&mut writer, &*mut_state),
+                                        Ok(())
+                                    ) {
+                                        drop(mut_state);
+                                        if matches!(writer.flush(), Ok(())) {
+                                            let _ = handle_clone.emit("state-updated", ());
+                                        }
                                     }
                                 }
-                            }
+                                Err(err) => {
+                                    error!("{err}");
+                                }
+                            };
                         }
                     }
                 });
