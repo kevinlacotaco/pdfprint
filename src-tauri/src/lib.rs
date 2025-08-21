@@ -290,6 +290,25 @@ fn formatter(out: FormatCallback, message: &fmt::Arguments, record: &Record) {
     ));
 }
 
+fn load_workspace(app_handle: &tauri::AppHandle, workspace_json: &PathBuf) {
+    if let Ok(file) = File::open(workspace_json) {
+        let mut reader = BufReader::new(file);
+        let mut string = String::new();
+        if let Ok(res) = reader.read_to_string(&mut string) {
+            if res > 0 {
+                if let Ok(deserialized) = serde_json::from_str::<AppState>(&string) {
+                    let handle_clone = app_handle.clone();
+                    let state = handle_clone.state::<Mutex<AppState>>();
+                    if let Ok(mut state) = state.lock() {
+                        *state = deserialized;
+                    }
+                    let _ = handle_clone.emit("state-loaded", ());
+                }
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 #[allow(clippy::missing_panics_doc)]
 pub fn run() {
@@ -314,9 +333,11 @@ pub fn run() {
             let workspace_json = app_data.join("workspace.json");
             let app_data_path = app_data.as_path();
 
-            if exists(app_data_path).is_err() {
+            if !exists(app_data_path).unwrap_or(false) {
                 info!("App Data Dir does not exist. Creating it");
-                let _ = create_dir_all(app_data_path);
+                if let Err(err) = create_dir_all(app_data_path) {
+                    error!("{err}");
+                }
             }
 
             {
@@ -337,22 +358,7 @@ pub fn run() {
             }
 
             // Load workspace state from file if it exists
-            if let Ok(file) = File::open(&workspace_json) {
-                let mut reader = BufReader::new(file);
-                let mut string = String::new();
-                if let Ok(res) = reader.read_to_string(&mut string) {
-                    if res > 0 {
-                        if let Ok(deserialized) = serde_json::from_str::<AppState>(&string) {
-                            let handle_clone = app.handle().clone();
-                            let state = handle_clone.state::<Mutex<AppState>>();
-                            if let Ok(mut state) = state.lock() {
-                                *state = deserialized;
-                            }
-                            let _ = handle_clone.emit("state-loaded", ());
-                        }
-                    }
-                }
-            }
+            load_workspace(app.handle(), &workspace_json);
 
             let _ = menu::setup_menu(app).map_err(|_| return "Failed to setup menu".to_string());
 
