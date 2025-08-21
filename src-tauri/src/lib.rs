@@ -8,10 +8,12 @@ use std::sync::Mutex;
 use tauri_plugin_updater::UpdaterExt;
 use tempfile::NamedTempFile;
 
+use log::{error, info};
 use std::fs::read_dir;
 use std::time::Duration;
 use tauri::path::PathResolver;
 use tauri::{Emitter, Listener, Manager};
+use tauri_plugin_log::{Target, TargetKind};
 
 mod file_utils;
 mod menu;
@@ -129,7 +131,9 @@ fn create_combined_pdf(root: &Path, pdfs: Vec<PdfPrintDetails>) -> Result<PdfDoc
         }
 
         if pages.len() % 2 == 1 {
-            let _ = temp_doc.new_page(Size::LETTER);
+            temp_doc
+                .new_page(Size::LETTER)
+                .map_err(|e| return e.to_string())?;
         }
     }
 
@@ -139,7 +143,9 @@ fn create_combined_pdf(root: &Path, pdfs: Vec<PdfPrintDetails>) -> Result<PdfDoc
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)]
 fn frontend_ready(app_handle: tauri::AppHandle) {
-    let _ = process_folder(&app_handle);
+    if let Err(err) = process_folder(&app_handle) {
+        error!("{err}");
+    }
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -266,6 +272,12 @@ pub fn run() {
     #[allow(clippy::expect_used)]
     #[allow(clippy::large_stack_frames)]
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .max_file_size(50_000 /* bytes */)
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .manage(Mutex::new(AppState::default()))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
@@ -279,13 +291,17 @@ pub fn run() {
             {
                 let handle_clone = app.handle().clone();
                 app.handle().listen("state-loaded", move |_event| {
-                    let _ = process_folder(&handle_clone);
+                    if let Err(err) = process_folder(&handle_clone) {
+                        error!("{err}");
+                    }
                 });
             }
             {
                 let handle_clone = app.handle().clone();
                 app.handle().listen("state-updated", move |_event| {
-                    let _ = process_folder(&handle_clone);
+                    if let Err(err) = process_folder(&handle_clone) {
+                        error!("{err}");
+                    }
                 });
             }
 
@@ -338,6 +354,8 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 let _ = update(handle).await;
             });
+
+            info!("All set up!");
 
             return Ok(());
         })
