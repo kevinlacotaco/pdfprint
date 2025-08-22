@@ -373,17 +373,11 @@ pub fn run() {
                 create_dir_all(&app_data)?;
             }
 
-            {
-                let handle_clone = app.handle().clone();
-                app.handle().listen("state-loaded", move |_event| {
-                    if let Err(err) = process_folder(&handle_clone) {
-                        error!("{err}");
-                    }
-                });
-            }
-            {
-                let handle_clone = app.handle().clone();
-                app.handle().listen("state-updated", move |_event| {
+            let events = ["state-loaded", "state-updated"];
+            for event in events {
+                let handle_clone: tauri::AppHandle = app.handle().clone();
+
+                app.handle().listen(event, move |_event| {
                     if let Err(err) = process_folder(&handle_clone) {
                         error!("{err}");
                     }
