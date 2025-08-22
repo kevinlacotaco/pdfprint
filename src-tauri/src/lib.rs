@@ -12,7 +12,7 @@ use tauri_plugin_updater::UpdaterExt;
 use tempfile::NamedTempFile;
 use time::macros::format_description;
 
-use log::{error, info, Record};
+use log::{error, info, warn, Record};
 use std::fs::{create_dir_all, read_dir};
 use std::time::Duration;
 use tauri::path::PathResolver;
@@ -21,7 +21,7 @@ use tauri::{Emitter, Listener, Manager};
 mod file_utils;
 mod menu;
 
-#[derive(Default, serde::Serialize, serde::Deserialize, Debug)]
+#[derive(Default, serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct AppState {
     workspace: Option<String>,
 }
@@ -316,24 +316,24 @@ fn load_workspace(app_handle: &tauri::AppHandle, workspace_json: &PathBuf) {
 fn folder_chosen(app_handle: &tauri::AppHandle, path: String, workspace_json: &PathBuf) {
     let handle_clone = app_handle.clone();
     let state = handle_clone.state::<Mutex<AppState>>();
-    let locked = state.lock();
 
-    if let Ok(mut mut_state) = locked {
-        mut_state.workspace = Some(path);
+    let Ok(mut mut_state) = state.lock() else {
+        warn!("Could not acquire lock!");
+        return;
+    };
+    mut_state.workspace = Some(path);
+    let clone = mut_state.clone();
 
-        match File::create(workspace_json) {
-            Ok(file) => {
-                let mut writer = BufWriter::new(file);
-                if matches!(serde_json::to_writer(&mut writer, &*mut_state), Ok(())) {
-                    drop(mut_state);
-                    if matches!(writer.flush(), Ok(())) {
-                        let _ = handle_clone.emit("state-updated", ());
-                    }
-                }
+    match File::create(workspace_json) {
+        Ok(file) => {
+            let mut writer = BufWriter::new(file);
+            if serde_json::to_writer(&mut writer, &clone).is_ok() && writer.flush().is_ok() {
+                info!("Emitting update");
+                let _ = handle_clone.emit("state-updated", ());
             }
-            Err(err) => {
-                error!("{err}");
-            }
+        }
+        Err(err) => {
+            error!("{err}");
         }
     }
 }
