@@ -145,6 +145,10 @@ const DataTable = ({
   const [rowSelection, setRowSelection] = useAtom(rowSelectionAtom);
 
   useEffect(() => {
+    setData(tableData);
+  }, [tableData]);
+
+  useEffect(() => {
     if (onChange != null) {
       const dataToSend = data.filter((_value, idx) => {
         return rowSelection[idx] === true;
