@@ -2,7 +2,7 @@ use log::{error, info};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Emitter;
 use tauri::Manager;
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 use tauri_plugin_opener::OpenerExt;
 
 fn open_folder_handler(app: &tauri::AppHandle) {
@@ -39,7 +39,13 @@ pub fn setup_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .id("view_logs")
         .build(app)?;
 
-    let help_submenu = SubmenuBuilder::new(app, "Help").item(&view_logs).build()?;
+    let about = MenuItemBuilder::new("About").id("about").build(app)?;
+
+    let help_submenu = SubmenuBuilder::new(app, "Help")
+        .item(&view_logs)
+        .separator()
+        .item(&about)
+        .build()?;
 
     let menu = MenuBuilder::new(app)
         .items(&[&file_submenu, &help_submenu])
@@ -63,6 +69,19 @@ pub fn setup_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                         .opener()
                         .open_path(log_path.to_string_lossy(), None::<&str>);
                 }
+            }
+            "about" => {
+                let package_info = app.app_handle().package_info();
+                let app_name = &package_info.name.clone();
+                let version = &package_info.version.clone();
+                let author = &package_info.authors;
+
+                app.dialog()
+                    .message(format!("Version: {version}\nAuthor: {author}"))
+                    .kind(MessageDialogKind::Info)
+                    .title(app_name)
+                    .buttons(MessageDialogButtons::Ok)
+                    .show(|_res| info!("Closing about dialog"));
             }
             _ => {
                 error!("Unknown option selected: {}", event.id().0.as_str());

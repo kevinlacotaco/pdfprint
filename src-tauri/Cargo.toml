@@ -2,7 +2,7 @@
 name = "petprintpdfjs"
 version = "0.1.0"
 description = "A Tauri App"
-authors = ["you"]
+authors = ["Kevin Lakotko"]
 edition = "2021"
 keywords = ["pdf", "printing", "combine"]
 repository = "https://github.com/kevinlacotaco/pdfprint"
