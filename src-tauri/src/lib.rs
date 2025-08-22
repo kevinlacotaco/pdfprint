@@ -250,22 +250,26 @@ fn save_to_file(
 }
 
 async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
-    if let Some(update) = app.updater()?.check().await? {
-        let mut downloaded = 0;
+    if cfg!(not(debug_assertions)) {
+        info!("Checking for update");
+        if let Some(update) = app.updater()?.check().await? {
+            let mut downloaded = 0;
 
-        // alternatively we could also call update.download() and update.install() separately
-        update
-            .download_and_install(
-                |chunk_length, _content_length| {
-                    downloaded += chunk_length;
-                },
-                || {},
-            )
-            .await?;
+            // alternatively we could also call update.download() and update.install() separately
+            update
+                .download_and_install(
+                    |chunk_length, _content_length| {
+                        downloaded += chunk_length;
+                    },
+                    || {},
+                )
+                .await?;
 
-        app.restart();
+            app.restart();
+        }
+    } else {
+        info!("Skipping update check");
     }
-
     return Ok(());
 }
 
