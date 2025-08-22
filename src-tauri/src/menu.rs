@@ -10,12 +10,9 @@ fn open_folder_handler(app: &tauri::AppHandle) {
     app.dialog()
         .file()
         .pick_folder(move |file_path: Option<tauri_plugin_fs::FilePath>| {
-            let str = file_path
-                .as_ref()
-                .and_then(|x| return x.as_path())
-                .map(|path| return path.as_os_str().to_string_lossy());
-
-            let _ = handle_clone.emit("folder-chosen", str);
+            if let Some(path) = file_path {
+                let _ = handle_clone.emit("folder-chosen", path.to_string());
+            }
         });
 }
 
