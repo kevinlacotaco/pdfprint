@@ -11,20 +11,20 @@ import {
   useReactTable,
 } from '@tanstack/react-table';
 import { invoke } from '@tauri-apps/api/core';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import classNames from 'classnames';
 import { useAtom, useAtomValue } from 'jotai';
 import { atomWithReset, useResetAtom } from 'jotai/utils';
 import { HTMLProps, useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
+import IconArrowDown from './assets/icons/icon-cheveron-down-circle.svg?react';
+import IconArrowRight from './assets/icons/icon-cheveron-right-circle.svg?react';
 import { Button } from './components/button/Button';
 import { EditableTextCell } from './components/table/EditableTextCell';
 import { HeaderCell } from './components/table/HeaderCell';
 import { NumberCell } from './components/table/NumberCell';
 import { TextCell } from './components/table/TextCell';
-import { open, save } from '@tauri-apps/plugin-dialog';
 import { EntriesWithChildren, groupedPdfs, pdfAtom } from './store';
-import classNames from 'classnames';
-import IconArrowRight from './assets/icons/icon-cheveron-right-circle.svg?react';
-import IconArrowDown from './assets/icons/icon-cheveron-down-circle.svg?react';
 
 declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
