@@ -3,6 +3,7 @@ use mupdf::pdf::{PdfDocument, PdfGraftMap, PdfObject};
 use mupdf::Size;
 use printers::common::base::job::PrinterJobOptions;
 use std::fs::File;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -26,11 +27,14 @@ struct AppState {
     workspace: Option<String>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Clone)]
 struct PdfDetails {
     name: String,
+    path: String,
     pages: i32,
     size: u64,
+    parent: Option<u64>,
+    id: u64,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
@@ -38,7 +42,31 @@ struct PdfPrintDetails {
     name: String,
     pages: i32,
     size: u64,
+    path: String,
     print_range: Option<Vec<i32>>,
+}
+
+#[derive(serde::Serialize, Clone)]
+struct DirEntry {
+    name: String,
+    parent: Option<u64>,
+    path: String,
+    id: u64,
+}
+
+#[derive(serde::Serialize, Clone)]
+#[serde(tag = "type")]
+enum Entry {
+    #[serde(rename = "pdf")]
+    PdfDetails(PdfDetails),
+    #[serde(rename = "dir")]
+    DirEntry(DirEntry),
+}
+
+#[derive(serde::Serialize, Clone)]
+struct FolderProcessedPayload {
+    folder: String,
+    entries: Vec<Entry>,
 }
 
 fn add_page_to(
@@ -62,8 +90,7 @@ fn add_page_to(
     return destination_doc.add_object(&dst_page);
 }
 
-fn process_folder(app_handle: &tauri::AppHandle) -> Result<(), String> {
-    let handle_clone = app_handle.clone();
+fn get_workspace_root(app_handle: &tauri::AppHandle) -> Result<String, String> {
     let state = app_handle.state::<Mutex<AppState>>();
 
     let workspace = state
@@ -72,22 +99,48 @@ fn process_folder(app_handle: &tauri::AppHandle) -> Result<(), String> {
         .workspace
         .clone()
         .ok_or_else(|| return "No workspace set".to_string())?;
-    let workspace_path = Path::new(&workspace);
 
-    let entries: std::fs::ReadDir = read_dir(workspace_path).map_err(|e| return e.to_string())?;
+    return Ok(workspace);
+}
 
-    let pdfs: Vec<PdfDetails> = entries
+fn calculate_hash<T: Hash>(t: &T) -> u64 {
+    let mut s = DefaultHasher::new();
+    t.hash(&mut s);
+    return s.finish();
+}
+
+fn process_folder(app_handle: &tauri::AppHandle, path: &Path) -> Result<(), String> {
+    let handle_clone = app_handle.clone();
+
+    let parent = calculate_hash(&path.to_string_lossy().to_string());
+    let entries: std::fs::ReadDir = read_dir(path).map_err(|e| return e.to_string())?;
+
+    info!("Processing folder: {}", path.to_string_lossy());
+
+    let pdfs: Vec<Entry> = entries
         .filter(|entry| {
             return entry.as_ref().is_ok_and(|entry| {
-                return file_utils::get_extension_from_filename(
-                    &entry.file_name().to_string_lossy(),
-                )
-                .unwrap_or("")
-                    == "pdf";
+                return entry.file_type().is_ok_and(|x| return x.is_dir())
+                    || file_utils::get_extension_from_filename(
+                        &entry.file_name().to_string_lossy(),
+                    )
+                    .unwrap_or("")
+                        == "pdf";
             });
         })
         .filter_map(|entry: Result<std::fs::DirEntry, std::io::Error>| {
             return entry.map_or(None, |dir_entry| {
+                let path = dir_entry.path().to_string_lossy().to_string();
+                if dir_entry.file_type().is_ok_and(|f| return f.is_dir()) {
+                    let path_clone = path.clone();
+                    return Some(Entry::DirEntry(DirEntry {
+                        name: dir_entry.file_name().to_string_lossy().to_string(),
+                        parent: Some(parent),
+                        path,
+                        id: calculate_hash(&path_clone),
+                    }));
+                }
+
                 let name: String = dir_entry.file_name().to_string_lossy().to_string();
                 let metadata: std::fs::Metadata = dir_entry.metadata().ok()?;
                 let size: u64 = metadata.len();
@@ -96,23 +149,38 @@ fn process_folder(app_handle: &tauri::AppHandle) -> Result<(), String> {
 
                 let pages = document.page_count().unwrap_or(0);
 
-                return Some(PdfDetails { name, pages, size });
+                return Some(Entry::PdfDetails(PdfDetails {
+                    name,
+                    path: path.clone(),
+                    pages,
+                    size,
+                    parent: Some(parent),
+                    id: calculate_hash(&path),
+                }));
             });
         })
         .collect();
 
+    info!("Found {} pdfs in folder", pdfs.len());
+
     handle_clone
-        .emit("folder-processed", &pdfs)
+        .emit(
+            "folder-processed",
+            FolderProcessedPayload {
+                folder: path.to_string_lossy().to_string(),
+                entries: pdfs,
+            },
+        )
         .map_err(|e| return e.to_string())?;
 
     return Ok(());
 }
 
-fn create_combined_pdf(root: &Path, pdfs: Vec<PdfPrintDetails>) -> Result<PdfDocument, String> {
+fn create_combined_pdf(pdfs: Vec<PdfPrintDetails>) -> Result<PdfDocument, String> {
     let mut temp_doc: PdfDocument = PdfDocument::new();
 
     for pdf_detail in pdfs {
-        let pdf_path: PathBuf = root.join(PathBuf::from(pdf_detail.name));
+        let pdf_path: PathBuf = PathBuf::from(pdf_detail.path);
         let pdf_doc: PdfDocument =
             PdfDocument::open(&pdf_path.to_string_lossy()).map_err(|e| return e.to_string())?;
         let range: i32 = pdf_doc.page_count().map_err(|e| return e.to_string())?;
@@ -146,28 +214,29 @@ fn create_combined_pdf(root: &Path, pdfs: Vec<PdfPrintDetails>) -> Result<PdfDoc
 #[tauri::command]
 #[allow(clippy::needless_pass_by_value)]
 fn frontend_ready(app_handle: tauri::AppHandle) {
-    if let Err(err) = process_folder(&app_handle) {
+    if let Ok(root) = get_workspace_root(&app_handle) {
+        let workspace_path = Path::new(&root);
+
+        if let Err(err) = process_folder(&app_handle, workspace_path) {
+            error!("{err}");
+        }
+    }
+}
+
+#[tauri::command]
+#[allow(clippy::needless_pass_by_value)]
+fn load_dir(app_handle: tauri::AppHandle, folder: String) {
+    if let Err(err) = process_folder(&app_handle, Path::new(&folder)) {
         error!("{err}");
     }
 }
 
 #[tauri::command(rename_all = "snake_case")]
-#[allow(clippy::needless_pass_by_value)]
 fn print_to_default(
     app_handle: tauri::AppHandle,
     pdfs: Vec<PdfPrintDetails>,
 ) -> Result<(), String> {
-    let state = app_handle.state::<Mutex<AppState>>();
-
-    let workspace = state
-        .lock()
-        .map_err(|e| return e.to_string())?
-        .workspace
-        .clone()
-        .ok_or_else(|| return "No workspace set".to_string())?;
-    let workspace_path = Path::new(&workspace);
-
-    let combined_doc = create_combined_pdf(workspace_path, pdfs)?;
+    let combined_doc = create_combined_pdf(pdfs)?;
 
     // Create a temporary file to then send to a printer
     let file = NamedTempFile::with_suffix(".pdf").map_err(|e| return e.to_string())?;
@@ -216,28 +285,13 @@ fn print_to_default(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-#[allow(clippy::needless_pass_by_value)]
-fn save_to_file(
-    app_handle: tauri::AppHandle,
-    pdfs: Vec<PdfPrintDetails>,
-    file: String,
-) -> Result<(), String> {
-    let state = app_handle.state::<Mutex<AppState>>();
-
-    let workspace = state
-        .lock()
-        .map_err(|e| return e.to_string())?
-        .workspace
-        .clone()
-        .ok_or_else(|| return "No workspace set".to_string())?;
-    let workspace_path = Path::new(&workspace);
-
-    let combined_doc_result = create_combined_pdf(workspace_path, pdfs);
+fn save_to_file(pdfs: Vec<PdfPrintDetails>, file: &str) -> Result<(), String> {
+    let combined_doc_result = create_combined_pdf(pdfs);
     let Ok(combined_doc) = combined_doc_result else {
         // Swallow error, just do not try to write
         return Ok(());
     };
-    let file_to_save = File::create(&file).map_err(|e| return e.to_string())?;
+    let file_to_save = File::create(file).map_err(|e| return e.to_string())?;
     let mut writer = BufWriter::new(file_to_save);
 
     combined_doc
@@ -382,8 +436,13 @@ pub fn run() {
                 let handle_clone: tauri::AppHandle = app.handle().clone();
 
                 app.handle().listen(event, move |_event| {
-                    if let Err(err) = process_folder(&handle_clone) {
-                        error!("{err}");
+                    if let Ok(root) = get_workspace_root(&handle_clone) {
+                        let workspace_path = Path::new(&root);
+
+                        info!("Processing folder: {}", workspace_path.to_string_lossy());
+                        if let Err(err) = process_folder(&handle_clone, workspace_path) {
+                            error!("{err}");
+                        }
                     }
                 });
             }
@@ -415,7 +474,8 @@ pub fn run() {
             frontend_ready,
             print_to_default,
             save_to_file,
-            select_workspace
+            select_workspace,
+            load_dir
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

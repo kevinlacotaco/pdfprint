@@ -1,7 +1,9 @@
 import {
   createColumnHelper,
+  ExpandedState,
   flexRender,
   getCoreRowModel,
+  getExpandedRowModel,
   getSortedRowModel,
   RowData,
   RowSelectionState,
@@ -15,12 +17,14 @@ import { useAtom, useAtomValue } from 'jotai';
 import { atomWithReset, useResetAtom } from 'jotai/utils';
 import { HTMLProps, useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
+import IconArrowDown from './assets/icons/icon-cheveron-down-circle.svg?react';
+import IconArrowRight from './assets/icons/icon-cheveron-right-circle.svg?react';
 import { Button } from './components/button/Button';
 import { EditableTextCell } from './components/table/EditableTextCell';
 import { HeaderCell } from './components/table/HeaderCell';
 import { NumberCell } from './components/table/NumberCell';
 import { TextCell } from './components/table/TextCell';
-import { pdfAtom } from './store';
+import { EntriesWithChildren, groupedPdfs, pdfAtom } from './store';
 
 declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -29,7 +33,7 @@ declare module '@tanstack/react-table' {
   }
 }
 
-const columnHelper = createColumnHelper<PdfDetails>();
+const columnHelper = createColumnHelper<EntriesWithChildren>();
 
 function IndeterminateCheckbox({
   indeterminate,
@@ -47,43 +51,59 @@ function IndeterminateCheckbox({
   return <input type="checkbox" ref={ref} className={classNames('w-4 h-4 cursor-pointer', className)} {...rest} />;
 }
 
+const alphanumericCollator = new Intl.Collator('en', { numeric: true });
 const columns = [
-  columnHelper.display({
-    id: 'select',
-    size: 50,
-    maxSize: 50,
-    enableSorting: false,
-
-    header: ({ table }) => (
-      <IndeterminateCheckbox
-        {...{
-          checked: table.getIsAllRowsSelected(),
-          indeterminate: table.getIsSomeRowsSelected(),
-          onChange: table.getToggleAllRowsSelectedHandler(),
-        }}
-      />
-    ),
-    cell: ({ row }) => (
-      <div className="px-1 flex justify-center items-center">
-        <IndeterminateCheckbox
-          {...{
-            checked: row.getIsSelected(),
-            disabled: !row.getCanSelect(),
-            indeterminate: row.getIsSomeSelected(),
-            onChange: row.getToggleSelectedHandler(),
-          }}
-        />
-      </div>
-    ),
-  }),
-
   columnHelper.accessor('name', {
     size: 300,
     header: (props) => {
       return <HeaderCell title="File Name" sorted={props.column.getIsSorted()} />;
     },
-    cell: (props) => <TextCell value={props.getValue()} />,
-    sortingFn: 'alphanumeric',
+    cell: ({ row, getValue }) => {
+      return (
+        <div
+          className="flex items-center px-2 space-x-2"
+          style={{
+            paddingLeft: row.depth != 0 ? `${row.depth * 2}rem` : undefined,
+          }}
+        >
+          {row.original.type === 'pdf' && (
+            <IndeterminateCheckbox
+              {...{
+                checked: row.getIsSelected(),
+                disabled: !row.getCanSelect(),
+                indeterminate: row.getIsSomeSelected(),
+                onChange: row.getToggleSelectedHandler(),
+              }}
+            />
+          )}
+          {row.getCanExpand() && (
+            <button
+              onClick={row.getToggleExpandedHandler()}
+              style={{ cursor: 'pointer', paddingLeft: `${row.depth * 2}rem` }}
+            >
+              {row.getIsExpanded() ? (
+                <IconArrowDown className="inline w-4 h-4 text-gray-800 " />
+              ) : (
+                <IconArrowRight className="inline w-4 h-4 text-gray-800" />
+              )}
+            </button>
+          )}
+          <TextCell value={getValue()} />
+        </div>
+      );
+    },
+    sortingFn: (rowA, rowB) => {
+      const origA = rowA.original;
+      const origB = rowB.original;
+      if (origA.type === 'dir' && origB.type === 'pdf') {
+        return -1;
+      }
+      if (origB.type === 'dir' && origA.type === 'pdf') {
+        return 1;
+      }
+
+      return alphanumericCollator.compare(origA.name, origB.name);
+    },
   }),
   columnHelper.accessor('pages', {
     size: 100,
@@ -91,7 +111,12 @@ const columns = [
     header: (props) => {
       return <HeaderCell title="Page Count" sorted={props.column.getIsSorted()} />;
     },
-    cell: (props) => <NumberCell value={props.getValue()} />,
+    cell: (props) => {
+      const row = props.row.original;
+      if (row.type === 'pdf') {
+        return <NumberCell value={row.pages} />;
+      }
+    },
     sortingFn: 'alphanumeric',
   }),
   columnHelper.accessor('size', {
@@ -100,7 +125,12 @@ const columns = [
     header: (props) => {
       return <HeaderCell title="Size" sorted={props.column.getIsSorted()} />;
     },
-    cell: (props) => <NumberCell type="unit" unit="byte" value={props.getValue()} />,
+    cell: (props) => {
+      const row = props.row.original;
+      if (row.type === 'pdf') {
+        return <NumberCell type="unit" unit="byte" value={row.size} />;
+      }
+    },
     sortingFn: 'alphanumeric',
   }),
   columnHelper.display({
@@ -111,7 +141,10 @@ const columns = [
       return <HeaderCell title="Custom Pages" />;
     },
     cell: (props) => {
-      return <EditableTextCell {...props} />;
+      const row = props.row.original;
+      if (row.type === 'pdf') {
+        return <EditableTextCell {...props} />;
+      }
     },
   }),
 ];
@@ -120,6 +153,9 @@ type PdfDetails = {
   name: string;
   pages: number;
   size: number;
+  type: 'pdf';
+  id: number;
+  path: string;
   printRange?: string;
 };
 
@@ -136,38 +172,66 @@ const DataTable = ({
   tableData,
   onChange,
 }: {
-  tableData: PdfDetails[];
+  tableData: EntriesWithChildren[];
   onChange?: (data: PdfDetails[] | undefined) => void;
 }) => {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'name', desc: false }]);
 
   const [data, setData] = useState(tableData);
   const [rowSelection, setRowSelection] = useAtom(rowSelectionAtom);
+  const [expanded, setExpanded] = useState<ExpandedState>({});
 
   useEffect(() => {
     setData(tableData);
   }, [tableData]);
 
-  useEffect(() => {
-    if (onChange != null) {
-      const dataToSend = data.filter((_value, idx) => {
-        return rowSelection[idx] === true;
-      });
-
-      onChange(dataToSend);
-    }
-  }, [rowSelection, data]);
-
-  const table = useReactTable<PdfDetails>({
+  const table = useReactTable<EntriesWithChildren>({
     columns,
     data,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getExpandedRowModel: getExpandedRowModel(),
+    getSubRows: (row) => {
+      if (row.type === 'dir' && row.children.length > 0) {
+        return row.children;
+      }
+      return undefined;
+    },
+    getRowId: (row) => row.id.toString(),
     state: {
       sorting,
       rowSelection,
+      expanded: expanded,
+    },
+    enableRowSelection: (row) => {
+      return row.original.type !== 'dir';
     },
     onSortingChange: setSorting,
+    onExpandedChange: (updater) => {
+      if (typeof updater === 'function') {
+        setExpanded((old) => {
+          const newVal = updater(old);
+          if (typeof old === 'boolean' || typeof newVal === 'boolean') {
+            return newVal;
+          }
+          const expandedKey = Object.keys(newVal).filter((k) => !(k in old))[0];
+          if (expandedKey != null) {
+            const row = data.find((d) => d.id.toString() === expandedKey);
+
+            if (row != null && row.type === 'dir' && row.children.length === 0) {
+              console.log(row);
+              invoke('load_dir', { folder: row.path });
+            }
+          }
+
+          return newVal;
+        });
+      } else {
+        setExpanded(updater);
+      }
+    },
+    getRowCanExpand: (row) => row.original.type === 'dir',
+
     onRowSelectionChange: setRowSelection,
     meta: {
       updateData: (rowIndex, columnId, value) => {
@@ -185,6 +249,19 @@ const DataTable = ({
       },
     },
   });
+
+  useEffect(() => {
+    if (onChange != null) {
+      const dataToSend = table
+        .getSelectedRowModel()
+        .flatRows.map((row) => row.original)
+        .filter((value): value is PdfDetails => {
+          return value.type === 'pdf';
+        });
+
+      onChange(dataToSend);
+    }
+  }, [onChange, table, rowSelection]);
 
   return (
     <table className="border-separate border-spacing-0 w-full max-w-full table-fixed">
@@ -226,10 +303,14 @@ const DataTable = ({
           <tr
             key={row.id}
             onClick={row.getToggleSelectedHandler()}
-            className={classNames('cursor-pointer', {
-              'odd:bg-white even:bg-gray-200': !row.getIsSelected(),
-              'odd:bg-blue-100 even:bg-blue-200': row.getIsSelected(),
-            })}
+            className={classNames(
+              {
+                'cursor-pointer': row.getCanSelect(),
+                'odd:bg-white even:bg-gray-200': !row.getIsSelected(),
+                'odd:bg-blue-100 even:bg-blue-200': row.getIsSelected(),
+              },
+              'h-15'
+            )}
           >
             {row.getVisibleCells().map((cell) => (
               <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
@@ -272,18 +353,22 @@ function App() {
   const [data, setData] = useState<PdfDetails[]>();
   const resetRowSelection = useResetAtom(rowSelectionAtom);
   const isDisabled = data == null || data.length === 0;
+  const grouped = useAtomValue(groupedPdfs);
 
   const print = useCallback(() => {
-    invoke('print_to_default', {
-      pdfs: data?.map(({ printRange, ...detail }) => {
-        const serializedDetail: SerializedPdfDetails = detail;
-        if (printRange != null) {
-          serializedDetail.printRange = parsePrintRange(printRange);
-        }
-        return detail;
-      }),
-    });
-    resetRowSelection();
+    if (data != null) {
+      invoke('print_to_default', {
+        pdfs: data.map(({ printRange, ...detail }) => {
+          const serializedDetail: SerializedPdfDetails = detail;
+          if (printRange != null) {
+            serializedDetail.printRange = parsePrintRange(printRange);
+          }
+          return detail;
+        }),
+      });
+
+      resetRowSelection();
+    }
   }, [data]);
 
   const saveToFolder = useCallback(async () => {
@@ -328,7 +413,7 @@ function App() {
         <h1 className="text-3xl font-bold underline text-center">Pet Print PDF</h1>
       </header>
       <div className="flex-auto overflow-auto scroll-auto">
-        {!isInitial && !emptyState && <DataTable tableData={pdfs} onChange={setData} />}
+        {!isInitial && !emptyState && <DataTable tableData={grouped!} onChange={setData} />}
         {emptyState && (
           <div className="flex items-center justify-center h-full w-full">
             <div className="text-2xl text-center">No PDFs within the folder</div>

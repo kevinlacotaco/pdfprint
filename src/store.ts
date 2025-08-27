@@ -2,15 +2,70 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { atom, createStore } from 'jotai';
 
-type PdfDetails = { name: string; pages: number; size: number };
+type PdfDetails = {
+  parent?: number | null;
+  name: string;
+  pages: number;
+  path: string;
+  size: number;
+  type: 'pdf';
+  id: number;
+};
+type Dir = { parent?: number | null; name: string; type: 'dir'; id: number; path: string };
 
-export const pdfAtom = atom<PdfDetails[] | null>(null);
+type Entries = PdfDetails | Dir;
+
+export type EntriesWithChildren = DirWithChildren | PdfDetails;
+export type DirWithChildren = Dir & { children: EntriesWithChildren[] };
+
+export const pdfAtom = atom<Entries[] | null>(null);
+export const groupedPdfs = atom((get) => {
+  const pdfs = get(pdfAtom);
+
+  if (pdfs == null) {
+    return null;
+  }
+
+  const map = new Map(
+    pdfs.map((entry): [number, EntriesWithChildren] => {
+      if (entry.type === 'pdf') {
+        return [entry.id, { ...entry }];
+      }
+      return [entry.id, { ...entry, children: [] }];
+    })
+  );
+
+  for (const [, entry] of map) {
+    const parentKey = entry.parent;
+    if (parentKey != null) {
+      const parent = map.get(parentKey);
+
+      if (parent != null && 'children' in parent) {
+        parent.children.push(entry);
+      } else {
+        // If we do not find a node from the map for the parent, null out the field to force root
+        entry.parent = null;
+      }
+    }
+  }
+
+  for (const [name, entry] of map) {
+    if (entry.parent != null) {
+      map.delete(name);
+    }
+  }
+
+  return [...map.values()];
+});
 
 const setupEvents = async (store: ReturnType<typeof createStore>) => {
   try {
-    await listen<PdfDetails[]>('folder-processed', (event) => {
-      const pdfMessage = event.payload;
-      store.set(pdfAtom, pdfMessage);
+    await listen<{ folder: string; entries: Entries[] }>('folder-processed', (event) => {
+      const pdfMessage = event.payload.entries;
+
+      store.set(pdfAtom, (prev) => {
+        return (prev ?? []).concat(pdfMessage);
+      });
     });
 
     // After all events have been added, let the backend know we are fully ready
