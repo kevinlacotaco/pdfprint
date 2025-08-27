@@ -36,7 +36,7 @@ jobs:
     name: Create Release
     runs-on: ubuntu-latest
     needs: [next_version]
-    if: success() && ${{ needs.next_version.outputs.next_version }} != 'v'
+    if: success() && needs.next_version.outputs.next_version != 'v'
     permissions:
       contents: write # to be able to publish a GitHub release
       issues: write # to be able to comment on released issues
@@ -52,6 +52,8 @@ jobs:
           node-version: 'lts/*'
       - name: Install dependencies
         run: npm clean-install
+      - name: Echo tag
+        run: echo ${{ needs.next_version.outputs.next_version }}
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
