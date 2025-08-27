@@ -2,7 +2,15 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { atom, createStore } from 'jotai';
 
-type PdfDetails = { parent?: number | null; name: string; pages: number; size: number; type: 'pdf'; id: number };
+type PdfDetails = {
+  parent?: number | null;
+  name: string;
+  pages: number;
+  path: string;
+  size: number;
+  type: 'pdf';
+  id: number;
+};
 type Dir = { parent?: number | null; name: string; type: 'dir'; id: number; path: string };
 
 type Entries = PdfDetails | Dir;

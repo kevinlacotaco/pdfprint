@@ -60,12 +60,14 @@ const columns = [
     },
     cell: ({ row, getValue }) => {
       return (
-        <div className="flex items-center px-2 space-x-2">
+        <div
+          className="flex items-center px-2 space-x-2"
+          style={{
+            paddingLeft: row.depth != 0 ? `${row.depth * 2}rem` : undefined,
+          }}
+        >
           {row.original.type === 'pdf' && (
             <IndeterminateCheckbox
-              style={{
-                paddingLeft: `${row.depth * 2}rem`,
-              }}
               {...{
                 checked: row.getIsSelected(),
                 disabled: !row.getCanSelect(),
@@ -153,6 +155,7 @@ type PdfDetails = {
   size: number;
   type: 'pdf';
   id: number;
+  path: string;
   printRange?: string;
 };
 
@@ -181,16 +184,6 @@ const DataTable = ({
   useEffect(() => {
     setData(tableData);
   }, [tableData]);
-
-  useEffect(() => {
-    if (onChange != null) {
-      const dataToSend = data.filter((value, idx): value is PdfDetails => {
-        return rowSelection[idx] === true && value.type === 'pdf';
-      });
-
-      onChange(dataToSend);
-    }
-  }, [rowSelection, data]);
 
   const table = useReactTable<EntriesWithChildren>({
     columns,
@@ -256,6 +249,19 @@ const DataTable = ({
       },
     },
   });
+
+  useEffect(() => {
+    if (onChange != null) {
+      const dataToSend = table
+        .getSelectedRowModel()
+        .flatRows.map((row) => row.original)
+        .filter((value): value is PdfDetails => {
+          return value.type === 'pdf';
+        });
+
+      onChange(dataToSend);
+    }
+  }, [onChange, table, rowSelection]);
 
   return (
     <table className="border-separate border-spacing-0 w-full max-w-full table-fixed">

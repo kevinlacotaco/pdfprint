@@ -30,6 +30,7 @@ struct AppState {
 #[derive(serde::Serialize, Clone)]
 struct PdfDetails {
     name: String,
+    path: String,
     pages: i32,
     size: u64,
     parent: Option<u64>,
@@ -41,6 +42,7 @@ struct PdfPrintDetails {
     name: String,
     pages: i32,
     size: u64,
+    path: String,
     print_range: Option<Vec<i32>>,
 }
 
@@ -149,6 +151,7 @@ fn process_folder(app_handle: &tauri::AppHandle, path: &Path) -> Result<(), Stri
 
                 return Some(Entry::PdfDetails(PdfDetails {
                     name,
+                    path: path.clone(),
                     pages,
                     size,
                     parent: Some(parent),
@@ -173,11 +176,11 @@ fn process_folder(app_handle: &tauri::AppHandle, path: &Path) -> Result<(), Stri
     return Ok(());
 }
 
-fn create_combined_pdf(root: &Path, pdfs: Vec<PdfPrintDetails>) -> Result<PdfDocument, String> {
+fn create_combined_pdf(pdfs: Vec<PdfPrintDetails>) -> Result<PdfDocument, String> {
     let mut temp_doc: PdfDocument = PdfDocument::new();
 
     for pdf_detail in pdfs {
-        let pdf_path: PathBuf = root.join(PathBuf::from(pdf_detail.name));
+        let pdf_path: PathBuf = PathBuf::from(pdf_detail.path);
         let pdf_doc: PdfDocument =
             PdfDocument::open(&pdf_path.to_string_lossy()).map_err(|e| return e.to_string())?;
         let range: i32 = pdf_doc.page_count().map_err(|e| return e.to_string())?;
@@ -229,22 +232,11 @@ fn load_dir(app_handle: tauri::AppHandle, folder: String) {
 }
 
 #[tauri::command(rename_all = "snake_case")]
-#[allow(clippy::needless_pass_by_value)]
 fn print_to_default(
     app_handle: tauri::AppHandle,
     pdfs: Vec<PdfPrintDetails>,
 ) -> Result<(), String> {
-    let state = app_handle.state::<Mutex<AppState>>();
-
-    let workspace = state
-        .lock()
-        .map_err(|e| return e.to_string())?
-        .workspace
-        .clone()
-        .ok_or_else(|| return "No workspace set".to_string())?;
-    let workspace_path = Path::new(&workspace);
-
-    let combined_doc = create_combined_pdf(workspace_path, pdfs)?;
+    let combined_doc = create_combined_pdf(pdfs)?;
 
     // Create a temporary file to then send to a printer
     let file = NamedTempFile::with_suffix(".pdf").map_err(|e| return e.to_string())?;
@@ -293,28 +285,13 @@ fn print_to_default(
 }
 
 #[tauri::command(rename_all = "snake_case")]
-#[allow(clippy::needless_pass_by_value)]
-fn save_to_file(
-    app_handle: tauri::AppHandle,
-    pdfs: Vec<PdfPrintDetails>,
-    file: String,
-) -> Result<(), String> {
-    let state = app_handle.state::<Mutex<AppState>>();
-
-    let workspace = state
-        .lock()
-        .map_err(|e| return e.to_string())?
-        .workspace
-        .clone()
-        .ok_or_else(|| return "No workspace set".to_string())?;
-    let workspace_path = Path::new(&workspace);
-
-    let combined_doc_result = create_combined_pdf(workspace_path, pdfs);
+fn save_to_file(pdfs: Vec<PdfPrintDetails>, file: &str) -> Result<(), String> {
+    let combined_doc_result = create_combined_pdf(pdfs);
     let Ok(combined_doc) = combined_doc_result else {
         // Swallow error, just do not try to write
         return Ok(());
     };
-    let file_to_save = File::create(&file).map_err(|e| return e.to_string())?;
+    let file_to_save = File::create(file).map_err(|e| return e.to_string())?;
     let mut writer = BufWriter::new(file_to_save);
 
     combined_doc
