@@ -211,13 +211,14 @@ const DataTable = ({
           if (typeof old === 'boolean' || typeof newVal === 'boolean') {
             return newVal;
           }
+
           const expandedKey = Object.keys(newVal).filter((k) => !(k in old))[0];
           if (expandedKey != null) {
-            const row = data.find((d) => d.id.toString() === expandedKey);
+            const row = table.getExpandedRowModel().flatRows.find((d) => d.original.id.toString() === expandedKey);
+            const entry = row?.original;
 
-            if (row != null && row.type === 'dir' && row.children.length === 0) {
-              console.log(row);
-              invoke('load_dir', { folder: row.path });
+            if (entry != null && entry.type === 'dir' && entry.children.length === 0) {
+              invoke('load_dir', { folder: entry.path });
             }
           }
 
