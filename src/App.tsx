@@ -77,10 +77,7 @@ const columns = [
             />
           )}
           {row.getCanExpand() && (
-            <button
-              onClick={row.getToggleExpandedHandler()}
-              style={{ cursor: 'pointer', paddingLeft: `${row.depth * 2}rem` }}
-            >
+            <button onClick={row.getToggleExpandedHandler()} style={{ cursor: 'pointer' }}>
               {row.getIsExpanded() ? (
                 <IconArrowDown className="inline w-4 h-4 text-gray-800 " />
               ) : (
