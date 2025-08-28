@@ -9,7 +9,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri_plugin_log::fern::FormatCallback;
 use tauri_plugin_log::TimezoneStrategy;
-use tauri_plugin_updater::UpdaterExt;
 use tempfile::NamedTempFile;
 use time::macros::format_description;
 
@@ -19,8 +18,11 @@ use std::time::Duration;
 use tauri::path::PathResolver;
 use tauri::{Emitter, Listener, Manager};
 
+use crate::mutex_utils::LockResultExt;
+
 mod file_utils;
 mod menu;
+mod mutex_utils;
 
 #[derive(Default, serde::Serialize, serde::Deserialize, Debug, Clone)]
 struct AppState {
@@ -91,11 +93,10 @@ fn add_page_to(
 }
 
 fn get_workspace_root(app_handle: &tauri::AppHandle) -> Result<String, String> {
-    let state = app_handle.state::<Mutex<AppState>>();
-
-    let workspace = state
+    let workspace = app_handle
+        .state::<Mutex<AppState>>()
         .lock()
-        .map_err(|e| return e.to_string())?
+        .read_or_panic()
         .workspace
         .clone()
         .ok_or_else(|| return "No workspace set".to_string())?;
@@ -303,30 +304,6 @@ fn save_to_file(pdfs: Vec<PdfPrintDetails>, file: &str) -> Result<(), String> {
     return Ok(());
 }
 
-async fn update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
-    if cfg!(not(debug_assertions)) {
-        info!("Checking for update");
-        if let Some(update) = app.updater()?.check().await? {
-            let mut downloaded = 0;
-
-            // alternatively we could also call update.download() and update.install() separately
-            update
-                .download_and_install(
-                    |chunk_length, _content_length| {
-                        downloaded += chunk_length;
-                    },
-                    || {},
-                )
-                .await?;
-
-            app.restart();
-        }
-    } else {
-        info!("Skipping update check");
-    }
-    return Ok(());
-}
-
 fn formatter(out: FormatCallback, message: &fmt::Arguments, record: &Record) {
     let format = format_description!("[year]-[month]-[day] [hour]:[minute]:[second]");
 
@@ -417,6 +394,7 @@ pub fn run() {
                 .build(),
         )
         .manage(Mutex::new(AppState::default()))
+        .manage(menu::PendingUpdate::new(Mutex::new(None)))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -450,7 +428,8 @@ pub fn run() {
             // Load workspace state from file if it exists
             load_workspace(app.handle(), &workspace_json);
 
-            let _ = menu::setup_menu(app).map_err(|_| return "Failed to setup menu".to_string());
+            let _ = menu::setup_menu(app.handle())
+                .map_err(|_| return "Failed to setup menu".to_string());
 
             {
                 let handle_clone = app.handle().clone();
@@ -461,11 +440,6 @@ pub fn run() {
                 });
             }
 
-            let handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                let _ = update(handle).await;
-            });
-
             info!("All set up!");
 
             return Ok(());
@@ -475,7 +449,7 @@ pub fn run() {
             print_to_default,
             save_to_file,
             select_workspace,
-            load_dir
+            load_dir,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
