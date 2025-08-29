@@ -13,12 +13,12 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import classNames from 'classnames';
+import IconArrowDown from 'icons/icon-cheveron-down-circle.svg?react';
+import IconArrowRight from 'icons/icon-cheveron-right-circle.svg?react';
 import { useAtom, useAtomValue } from 'jotai';
 import { atomWithReset, useResetAtom } from 'jotai/utils';
 import { HTMLProps, useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
-import IconArrowDown from './assets/icons/icon-cheveron-down-circle.svg?react';
-import IconArrowRight from './assets/icons/icon-cheveron-right-circle.svg?react';
 import { Button } from './components/button/Button';
 import { EditableTextCell } from './components/table/EditableTextCell';
 import { HeaderCell } from './components/table/HeaderCell';
