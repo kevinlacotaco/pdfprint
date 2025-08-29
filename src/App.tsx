@@ -349,7 +349,7 @@ function App() {
           if (printRange != null) {
             serializedDetail.printRange = parsePrintRange(printRange);
           }
-          return detail;
+          return serializedDetail;
         }),
       });
       resetRowSelection();
