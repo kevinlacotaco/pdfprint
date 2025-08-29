@@ -25,6 +25,7 @@ import { HeaderCell } from './components/table/HeaderCell';
 import { NumberCell } from './components/table/NumberCell';
 import { TextCell } from './components/table/TextCell';
 import { EntriesWithChildren, groupedPdfs, pdfAtom } from './store';
+import { parsePrintRange } from './utils/parsePrintRange';
 
 declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -318,30 +319,6 @@ const DataTable = ({
       </tbody>
     </table>
   );
-};
-
-const range = (start: number, end: number): number[] => {
-  return [...Array(end - start + 1).keys()].map((i) => i + start);
-};
-
-const parsePrintRange = (printRange: string): number[] => {
-  const parts = printRange.split(',');
-
-  return Array.from(
-    new Set(
-      parts.reduce((acc: number[], part: string) => {
-        if (part.includes('-')) {
-          const [start, end] = part.split('-').map(Number);
-
-          acc = acc.concat(range(start, end));
-        } else {
-          acc.push(parseInt(part, 10));
-        }
-
-        return acc;
-      }, [])
-    )
-  ).sort((a, b) => a - b);
 };
 
 function App() {
