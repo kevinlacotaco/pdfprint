@@ -1,14 +1,34 @@
 {
   "branches": ["main"],
   "plugins": [
-    {
-      "preset": "angular",
-      "releaseRules": [
-        { "type": "docs", "scope": "README", "release": "patch" },
-        { "type": "refactor", "release": "patch" }
-      ]
-    },
-    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "angular",
+        "releaseRules": [
+          { "type": "docs", "scope": "README", "release": "patch" },
+          { "type": "refactor", "release": "patch" }
+        ]
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "angular",
+        "presetConfig": {
+          "types": [
+            { "type": "feat", "section": "Features" },
+            { "type": "fix", "section": "Bug Fixes" },
+            { "type": "chore", "hidden": true },
+            { "type": "docs", "hidden": true },
+            { "type": "style", "hidden": true },
+            { "type": "refactor", "hidden": false, "section": "Code Refactors" },
+            { "type": "perf", "hidden": false, "section": "Performance Improvements" },
+            { "type": "test", "hidden": true }
+          ]
+        }
+      }
+    ],
     [
       "@semantic-release/npm",
       {
