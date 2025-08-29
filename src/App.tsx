@@ -63,7 +63,7 @@ const columns = [
             />
           )}
           {row.getCanExpand() && (
-            <button onClick={row.getToggleExpandedHandler()} style={{ cursor: 'pointer' }}>
+            <button onClick={row.getToggleExpandedHandler()} className="cursor-pointer">
               {row.getIsExpanded() ? (
                 <IconArrowDown className="inline w-4 h-4 text-gray-800 " />
               ) : (
@@ -257,11 +257,9 @@ const DataTable = ({
                 <th key={header.id} className=" whitespace-nowrap" style={{ width: header.column.columnDef.size }}>
                   {header.isPlaceholder ? null : (
                     <div
-                      className={
-                        header.column.getCanSort()
-                          ? 'cursor-pointer select-none w-full items-center justify-center flex'
-                          : 'w-full items-center justify-center flex'
-                      }
+                      className={classNames('w-full items-center justify-center flex', {
+                        'cursor-pointer select-none': header.column.getCanSort(),
+                      })}
                       onClick={header.column.getToggleSortingHandler()}
                       title={
                         header.column.getCanSort()
