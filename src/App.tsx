@@ -27,6 +27,7 @@ import { NumberCell } from './components/table/NumberCell';
 import { TextCell } from './components/table/TextCell';
 import { EntriesWithChildren, groupedPdfs, pdfAtom } from './store';
 import { parsePrintRange } from './utils/parsePrintRange';
+import { Heading } from './components/heading/Heading';
 
 declare module '@tanstack/react-table' {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -368,18 +369,25 @@ function App() {
   return (
     <main className="flex flex-col h-screen bg-gray-100 items-stretch">
       <header className="w-full items-center justify-center shrink-0 grow-0 basis-0">
-        <h1 className="text-3xl font-bold underline text-center">Pet Print PDF</h1>
+        <Heading level="1" weight="bold" align="center">
+          Pet Print PDF
+        </Heading>
       </header>
       <div className="flex-auto overflow-auto scroll-auto">
         {!isInitial && !emptyState && <DataTable tableData={grouped!} onChange={setData} />}
         {emptyState && (
           <div className="flex items-center justify-center h-full w-full">
-            <div className="text-2xl text-center">No PDFs within the folder</div>
+            <Heading level="2" align="center">
+              No PDFs within the folder
+            </Heading>
           </div>
         )}
         {isInitial && (
           <div className="flex flex-col space-y-3 items-center justify-center h-full w-full">
-            <div className="text-2xl text-center">Select a folder to view PDFs</div>
+            <Heading level="2" align="center">
+              Select a folder to view PDFs
+            </Heading>
+
             <Button onClick={selectFolder}>Select Folder</Button>
           </div>
         )}
