@@ -17,9 +17,10 @@ import IconArrowDown from 'icons/icon-cheveron-down-circle.svg?react';
 import IconArrowRight from 'icons/icon-cheveron-right-circle.svg?react';
 import { useAtom, useAtomValue } from 'jotai';
 import { atomWithReset, useResetAtom } from 'jotai/utils';
-import { HTMLProps, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import './App.css';
 import { Button } from './components/button/Button';
+import { IndeterminateCheckbox } from './components/checkbox/IndeterminateCheckbox';
 import { EditableTextCell } from './components/table/EditableTextCell';
 import { HeaderCell } from './components/table/HeaderCell';
 import { NumberCell } from './components/table/NumberCell';
@@ -35,22 +36,6 @@ declare module '@tanstack/react-table' {
 }
 
 const columnHelper = createColumnHelper<EntriesWithChildren>();
-
-function IndeterminateCheckbox({
-  indeterminate,
-  className = '',
-  ...rest
-}: { indeterminate?: boolean } & HTMLProps<HTMLInputElement>) {
-  const ref = useRef<HTMLInputElement>(null!);
-
-  useEffect(() => {
-    if (typeof indeterminate === 'boolean') {
-      ref.current.indeterminate = !rest.checked && indeterminate;
-    }
-  }, [ref, indeterminate]);
-
-  return <input type="checkbox" ref={ref} className={classNames('w-4 h-4 cursor-pointer', className)} {...rest} />;
-}
 
 const alphanumericCollator = new Intl.Collator('en', { numeric: true });
 const columns = [
