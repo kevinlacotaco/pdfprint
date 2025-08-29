@@ -121,12 +121,19 @@ fn process_folder(app_handle: &tauri::AppHandle, path: &Path) -> Result<(), Stri
     let pdfs: Vec<Entry> = entries
         .filter(|entry| {
             return entry.as_ref().is_ok_and(|entry| {
-                return entry.file_type().is_ok_and(|x| return x.is_dir())
-                    || file_utils::get_extension_from_filename(
-                        &entry.file_name().to_string_lossy(),
-                    )
-                    .unwrap_or("")
-                        == "pdf";
+                return entry.file_type().is_ok_and(|x| {
+                    return x.is_dir()
+                        && !["pages", "numbers", "key"].contains(
+                            &file_utils::get_extension_from_filename(
+                                &entry.file_name().to_string_lossy(),
+                            )
+                            .unwrap_or(""),
+                        );
+                }) || file_utils::get_extension_from_filename(
+                    &entry.file_name().to_string_lossy(),
+                )
+                .unwrap_or("")
+                    == "pdf";
             });
         })
         .filter_map(|entry: Result<std::fs::DirEntry, std::io::Error>| {
