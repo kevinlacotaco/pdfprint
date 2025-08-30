@@ -328,7 +328,7 @@ function App() {
 
       resetRowSelection();
     }
-  }, [data]);
+  }, [data, resetRowSelection]);
 
   const saveToFolder = useCallback(async () => {
     const file = await save({
@@ -353,7 +353,7 @@ function App() {
       });
       resetRowSelection();
     }
-  }, [data]);
+  }, [data, resetRowSelection]);
 
   const selectFolder = useCallback(async () => {
     const file = await open({
