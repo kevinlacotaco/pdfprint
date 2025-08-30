@@ -1,4 +1,4 @@
-export const range = (start: number | undefined = 1, end: number | undefined): number[] => {
+export const range = (start: number | undefined = 1, end?: number): number[] => {
   if (end == null) {
     return [];
   }
