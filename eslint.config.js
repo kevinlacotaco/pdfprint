@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
-import cspellConfigs from '@cspell/eslint-plugin/configs';
+import cSpell from '@cspell/eslint-plugin';
 
 export default defineConfig([
   {
@@ -23,11 +23,16 @@ export default defineConfig([
     linterOptions: {
       reportUnusedDisableDirectives: 'error',
     },
+    settings: {
+      react: {
+        version: 'detect',
+      },
+    },
   },
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylistic,
 
-  cspellConfigs.recommended,
+  cSpell.configs.recommended,
   pluginReact.configs.flat.recommended,
   pluginReact.configs.flat['jsx-runtime'],
   reactHooks.configs['recommended-latest'],
