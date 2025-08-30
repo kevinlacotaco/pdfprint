@@ -4,7 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
-import cspellESLintPluginRecommended from '@cspell/eslint-plugin/recommended';
+import cspellConfigs from '@cspell/eslint-plugin/configs';
 
 export default defineConfig([
   {
@@ -27,8 +27,7 @@ export default defineConfig([
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylistic,
 
-  cspellESLintPluginRecommended,
-
+  cspellConfigs.recommended,
   pluginReact.configs.flat.recommended,
   pluginReact.configs.flat['jsx-runtime'],
   reactHooks.configs['recommended-latest'],
