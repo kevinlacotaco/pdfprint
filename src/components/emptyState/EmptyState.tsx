@@ -3,12 +3,12 @@ import { ReactNode } from 'react';
 
 type Spacing = '1' | '2' | '3' | '4';
 
-type EmptystateProps = {
+interface EmptyStateProps {
   children: ReactNode;
   spacing?: Spacing;
-};
+}
 
-export const EmptyState = ({ children, spacing = '3' }: EmptystateProps) => {
+export const EmptyState = ({ children, spacing = '3' }: EmptyStateProps) => {
   return (
     <div
       className={classNames(
