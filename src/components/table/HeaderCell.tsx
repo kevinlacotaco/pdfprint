@@ -2,11 +2,11 @@ import { SortDirection } from '@tanstack/react-table';
 import UpChevron from 'icons/icon-cheveron-up.svg?react';
 import DownChevron from 'icons/icon-cheveron-down.svg?react';
 
-export type HeaderCellProps = {
+export interface HeaderCellProps {
   title: string;
   sorted?: SortDirection | false;
   className?: string;
-};
+}
 
 export const HeaderCell = ({ title, sorted = false }: HeaderCellProps) => {
   return (

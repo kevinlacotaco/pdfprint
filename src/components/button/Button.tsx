@@ -1,7 +1,7 @@
 import classNames from 'classnames';
 import { MouseEventHandler, ReactNode } from 'react';
 
-type ButtonProps = {
+interface ButtonProps {
   variant?: 'primary' | 'secondary';
   disabled?: boolean;
   type?: HTMLButtonElement['type'];
@@ -9,7 +9,7 @@ type ButtonProps = {
   title?: string;
   children?: ReactNode;
   onClick: MouseEventHandler<HTMLButtonElement> | undefined;
-};
+}
 
 export const Button = ({
   onClick,

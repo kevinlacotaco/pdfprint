@@ -1,9 +1,9 @@
-export type NumberCellProps = {
+export interface NumberCellProps {
   value?: number;
   fractionDigits?: number;
   type?: Intl.NumberFormatOptionsStyle;
   unit?: Intl.NumberFormatOptions['unit'];
-};
+}
 
 const LOCALE = 'en-US';
 
@@ -12,20 +12,22 @@ export const NumberCell = ({ value, type = 'decimal', unit, fractionDigits = 0 }
 
   if (value != null) {
     switch (type) {
-      case 'decimal':
+      case 'decimal': {
         formattedValue = new Intl.NumberFormat(LOCALE, {
           style: type,
           minimumFractionDigits: fractionDigits,
           maximumFractionDigits: fractionDigits,
         }).format(value);
         break;
-      case 'unit':
+      }
+      case 'unit': {
         formattedValue = new Intl.NumberFormat(LOCALE, {
           notation: 'compact',
           style: type,
           unit: unit,
           unitDisplay: 'narrow',
         }).format(value);
+      }
     }
   }
 

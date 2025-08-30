@@ -1,5 +1,5 @@
 import { expect, test, describe } from 'vitest';
-import { parsePrintRange } from './parsePrintRange';
+import { parsePrintRange } from './parse-print-range';
 
 describe('parsePrintRange tests', () => {
   test('returns all pages inclusive sorted', () => {
@@ -12,5 +12,9 @@ describe('parsePrintRange tests', () => {
 
   test('allows specifying out of order with comma separated ranges', () => {
     expect(parsePrintRange('10, 7, 1-5')).toStrictEqual([1, 2, 3, 4, 5, 7, 10]);
+  });
+
+  test('allows specifying a range without a start (assumes 1)', () => {
+    expect(parsePrintRange('10, 7, -5')).toStrictEqual([1, 2, 3, 4, 5, 7, 10]);
   });
 });

@@ -1,6 +1,6 @@
-export type TextCellProps = {
+export interface TextCellProps {
   value?: string;
-};
+}
 
 export const TextCell = ({ value }: TextCellProps) => {
   return (

@@ -1,6 +1,6 @@
 import { ChangeEventHandler, FormEventHandler, ReactNode } from 'react';
 
-type InputProps = {
+interface InputProps {
   value: HTMLInputElement['value'];
   onChange: ChangeEventHandler<HTMLInputElement>;
   onBlur: FormEventHandler<HTMLInputElement>;
@@ -10,7 +10,7 @@ type InputProps = {
   disabled?: boolean;
   type?: HTMLInputElement['type'];
   size?: 'sm' | 'md' | 'lg';
-};
+}
 
 export const Input = ({ onChange, onBlur }: InputProps) => {
   return (

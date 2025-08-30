@@ -5,6 +5,7 @@ import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import cspellESLintPluginRecommended from '@cspell/eslint-plugin/recommended';
+import eslintPluginUnicorn from 'eslint-plugin-unicorn';
 
 export default defineConfig([
   {
@@ -36,6 +37,8 @@ export default defineConfig([
   pluginReact.configs.flat.recommended,
   pluginReact.configs.flat['jsx-runtime'],
   reactHooks.configs['recommended-latest'],
+  eslintPluginUnicorn.configs.recommended,
+
   {
     rules: {
       '@typescript-eslint/no-unused-vars': [
@@ -56,6 +59,19 @@ export default defineConfig([
           checkIdentifiers: true,
           autoFix: false,
           customWordListFile: './spelling.txt',
+        },
+      ],
+      'unicorn/no-null': 'off',
+      'unicorn/no-array-reduce': 'off',
+      'unicorn/prevent-abbreviations': 'off',
+      'unicorn/filename-case': [
+        'error',
+        {
+          cases: {
+            kebabCase: true,
+            pascalCase: true,
+          },
+          ignore: [String.raw`\.test\.tsx$`, String.raw`\.spec\.tsx$`],
         },
       ],
     },

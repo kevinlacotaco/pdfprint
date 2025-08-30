@@ -24,7 +24,13 @@ export const EditableTextCell = <TData, TValue>({
 
   return (
     <div className="p-2">
-      <Input value={value as string} onChange={(e) => setValue(e.target.value)} onBlur={onBlur} />
+      <Input
+        value={value as string}
+        onChange={(e) => {
+          setValue(e.target.value);
+        }}
+        onBlur={onBlur}
+      />
     </div>
   );
 };

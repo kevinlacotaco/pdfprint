@@ -1,4 +1,5 @@
 import {
+  Column,
   createColumnHelper,
   ExpandedState,
   flexRender,
@@ -26,7 +27,7 @@ import { HeaderCell } from './components/table/HeaderCell';
 import { NumberCell } from './components/table/NumberCell';
 import { TextCell } from './components/table/TextCell';
 import { EntriesWithChildren, groupedPdfs, pdfAtom } from './store';
-import { parsePrintRange } from './utils/parsePrintRange';
+import { parsePrintRange } from './utils/parse-print-range';
 import { Heading } from './components/heading/Heading';
 import { EmptyState } from './components/emptyState/EmptyState';
 
@@ -43,15 +44,15 @@ const alphanumericCollator = new Intl.Collator('en', { numeric: true });
 const columns = [
   columnHelper.accessor('name', {
     size: 300,
-    header: (props) => {
-      return <HeaderCell title="File Name" sorted={props.column.getIsSorted()} />;
+    header: (properties) => {
+      return <HeaderCell title="File Name" sorted={properties.column.getIsSorted()} />;
     },
     cell: ({ row, getValue }) => {
       return (
         <div
           className="flex items-center px-2 space-x-2"
           style={{
-            paddingLeft: row.depth != 0 ? `${(row.depth * 2).toFixed(0)}rem` : undefined,
+            paddingLeft: row.depth == 0 ? undefined : `${(row.depth * 2).toFixed(0)}rem`,
           }}
         >
           {row.original.type === 'pdf' && (
@@ -93,11 +94,11 @@ const columns = [
   columnHelper.accessor('pages', {
     size: 100,
     maxSize: 100,
-    header: (props) => {
-      return <HeaderCell title="Page Count" sorted={props.column.getIsSorted()} />;
+    header: (properties) => {
+      return <HeaderCell title="Page Count" sorted={properties.column.getIsSorted()} />;
     },
-    cell: (props) => {
-      const row = props.row.original;
+    cell: (properties) => {
+      const row = properties.row.original;
       if (row.type === 'pdf') {
         return <NumberCell value={row.pages} />;
       }
@@ -107,11 +108,11 @@ const columns = [
   columnHelper.accessor('size', {
     size: 100,
     maxSize: 100,
-    header: (props) => {
-      return <HeaderCell title="Size" sorted={props.column.getIsSorted()} />;
+    header: (properties) => {
+      return <HeaderCell title="Size" sorted={properties.column.getIsSorted()} />;
     },
-    cell: (props) => {
-      const row = props.row.original;
+    cell: (properties) => {
+      const row = properties.row.original;
       if (row.type === 'pdf') {
         return <NumberCell type="unit" unit="byte" value={row.size} />;
       }
@@ -125,10 +126,10 @@ const columns = [
     header: () => {
       return <HeaderCell title="Custom Pages" />;
     },
-    cell: (props) => {
-      const row = props.row.original;
+    cell: (properties) => {
+      const row = properties.row.original;
       if (row.type === 'pdf') {
-        return <EditableTextCell {...props} />;
+        return <EditableTextCell {...properties} />;
       }
     },
   }),
@@ -184,7 +185,7 @@ const DataTable = ({
       if (row.type === 'dir' && row.children.length > 0) {
         return row.children;
       }
-      return undefined;
+      return;
     },
     getRowId: (row) => row.id.toString(),
     state: {
@@ -198,16 +199,16 @@ const DataTable = ({
     onSortingChange: setSorting,
     onExpandedChange: (updater) => {
       setExpanded((old) => {
-        const newVal = updater instanceof Function ? updater(old) : updater;
+        const newValue = typeof updater === 'function' ? updater(old) : updater;
 
-        if (typeof old === 'boolean' || typeof newVal === 'boolean') {
-          return newVal;
+        if (typeof old === 'boolean' || typeof newValue === 'boolean') {
+          return newValue;
         }
 
         const rowModel = table.getRowModel().rowsById;
 
         if (onExpanded != null) {
-          const expandedKeys = Object.keys(newVal)
+          const expandedKeys = Object.keys(newValue)
             .filter((k) => !(k in old))
             .map((k) => rowModel[k]?.original)
             .filter((entry) => entry != null);
@@ -216,32 +217,32 @@ const DataTable = ({
 
         if (onCollapsed != null) {
           const collapsedKeys = Object.keys(old)
-            .filter((k) => !(k in newVal))
+            .filter((k) => !(k in newValue))
             .map((k) => rowModel[k]?.original)
             .filter((entry) => entry != null);
 
           onCollapsed(collapsedKeys);
         }
 
-        return newVal;
+        return newValue;
       });
     },
     getRowCanExpand: (row) => row.original.type === 'dir',
 
     onRowSelectionChange: (updater) => {
       setRowSelection((old) => {
-        const newVal = updater instanceof Function ? updater(old) : updater;
+        const newValue = typeof updater === 'function' ? updater(old) : updater;
 
         if (onChange != null) {
           const rowsById = table.getRowModel().rowsById;
 
-          const objects = Object.keys(newVal)
+          const objects = Object.keys(newValue)
             .map((id) => rowsById[id]?.original)
             .filter((entry) => entry != null);
 
           onChange(objects);
         }
-        return newVal;
+        return newValue;
       });
     },
     meta: {
@@ -261,6 +262,21 @@ const DataTable = ({
     },
   });
 
+  const getTitle = (column: Column<EntriesWithChildren>) => {
+    if (column.getCanSort()) {
+      if (column.getNextSortingOrder() === 'asc') {
+        return 'Sort ascending';
+      }
+      if (column.getNextSortingOrder() === 'desc') {
+        return 'Sort descending';
+      }
+
+      return 'Clear sort';
+    }
+
+    return;
+  };
+
   return (
     <table className="border-separate border-spacing-0 w-full max-w-full table-fixed">
       <thead className="sticky left-0 top-0 z-20 bg-gray-400">
@@ -275,15 +291,7 @@ const DataTable = ({
                         'cursor-pointer select-none': header.column.getCanSort(),
                       })}
                       onClick={header.column.getToggleSortingHandler()}
-                      title={
-                        header.column.getCanSort()
-                          ? header.column.getNextSortingOrder() === 'asc'
-                            ? 'Sort ascending'
-                            : header.column.getNextSortingOrder() === 'desc'
-                              ? 'Sort descending'
-                              : 'Clear sort'
-                          : undefined
-                      }
+                      title={getTitle(header.column)}
                     >
                       {flexRender(header.column.columnDef.header, header.getContext())}
                     </div>
@@ -344,7 +352,7 @@ function App() {
   }, [data, resetRowSelection]);
 
   const saveToFolder = useCallback(() => {
-    const cb = async () => {
+    const callback = async () => {
       const file = await save({
         filters: [
           {
@@ -369,11 +377,11 @@ function App() {
       }
     };
 
-    void cb();
+    void callback();
   }, [data, resetRowSelection]);
 
   const selectFolder = useCallback(() => {
-    const cb = async () => {
+    const callback = async () => {
       const file = await open({
         multiple: false,
         directory: true,
@@ -383,7 +391,7 @@ function App() {
         void invoke('select_workspace', { file });
       }
     };
-    void cb();
+    void callback();
   }, []);
 
   const onExpanded = useCallback((entries: EntriesWithChildren[]) => {

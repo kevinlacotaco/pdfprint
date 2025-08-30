@@ -6,7 +6,7 @@ import { setupStore } from './store';
 
 const store = setupStore();
 
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+ReactDOM.createRoot(document.querySelector('#root') as HTMLElement).render(
   <React.StrictMode>
     <Provider store={store}>
       <App />
