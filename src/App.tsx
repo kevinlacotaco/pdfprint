@@ -193,32 +193,44 @@ const DataTable = ({
     },
     onSortingChange: setSorting,
     onExpandedChange: (updater) => {
-      if (typeof updater === 'function') {
-        setExpanded((old) => {
-          const newVal = updater(old);
-          if (typeof old === 'boolean' || typeof newVal === 'boolean') {
-            return newVal;
-          }
+      setExpanded((old) => {
+        const newVal = updater instanceof Function ? updater(old) : updater;
 
-          const expandedKey = Object.keys(newVal).filter((k) => !(k in old))[0];
-          if (expandedKey != null) {
-            const row = table.getExpandedRowModel().flatRows.find((d) => d.original.id.toString() === expandedKey);
-            const entry = row?.original;
-
-            if (entry != null && entry.type === 'dir' && entry.children.length === 0) {
-              invoke('load_dir', { folder: entry.path });
-            }
-          }
-
+        if (typeof old === 'boolean' || typeof newVal === 'boolean') {
           return newVal;
-        });
-      } else {
-        setExpanded(updater);
-      }
+        }
+
+        const expandedKey = Object.keys(newVal).filter((k) => !(k in old))[0];
+        if (expandedKey != null) {
+          const row = table.getExpandedRowModel().rowsById[expandedKey];
+          const entry = row?.original;
+
+          if (entry != null && entry.type === 'dir' && entry.children.length === 0) {
+            invoke('load_dir', { folder: entry.path });
+          }
+        }
+
+        return newVal;
+      });
     },
     getRowCanExpand: (row) => row.original.type === 'dir',
 
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: (updater) => {
+      setRowSelection((old) => {
+        const newVal = updater instanceof Function ? updater(old) : updater;
+
+        if (onChange != null) {
+          const rowsById = table.getRowModel().rowsById;
+
+          const objects = Object.keys(newVal)
+            .map((id) => rowsById[id].original)
+            .filter((entry) => entry.type === 'pdf');
+
+          onChange(objects);
+        }
+        return newVal;
+      });
+    },
     meta: {
       updateData: (rowIndex, columnId, value) => {
         setData((old) => {
@@ -235,19 +247,6 @@ const DataTable = ({
       },
     },
   });
-
-  useEffect(() => {
-    if (onChange != null) {
-      const dataToSend = table
-        .getSelectedRowModel()
-        .flatRows.map((row) => row.original)
-        .filter((value): value is PdfDetails => {
-          return value.type === 'pdf';
-        });
-
-      onChange(dataToSend);
-    }
-  }, [onChange, table, rowSelection]);
 
   return (
     <table className="border-separate border-spacing-0 w-full max-w-full table-fixed">
