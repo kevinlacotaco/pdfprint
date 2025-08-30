@@ -1,6 +1,6 @@
+import { CellContext } from '@tanstack/react-table';
 import { useEffect, useState } from 'react';
 import { Input } from '../input/Input';
-import { CellContext } from '@tanstack/react-table';
 
 export const EditableTextCell = <TData, TValue>({
   getValue,

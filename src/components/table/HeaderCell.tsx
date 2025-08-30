@@ -1,6 +1,6 @@
 import { SortDirection } from '@tanstack/react-table';
-import UpChevron from 'icons/icon-cheveron-up.svg?react';
 import DownChevron from 'icons/icon-cheveron-down.svg?react';
+import UpChevron from 'icons/icon-cheveron-up.svg?react';
 
 export interface HeaderCellProps {
   title: string;

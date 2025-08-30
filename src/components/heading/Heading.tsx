@@ -1,5 +1,5 @@
 import classNames from 'classnames';
-import { ReactNode, JSX } from 'react';
+import { JSX, ReactNode } from 'react';
 
 type Alignment = 'left' | 'center' | 'right';
 type Level = '1' | '2' | '3' | '4';

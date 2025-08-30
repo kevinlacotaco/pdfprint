@@ -6,6 +6,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import cspellESLintPluginRecommended from '@cspell/eslint-plugin/recommended';
 import eslintPluginUnicorn from 'eslint-plugin-unicorn';
+import importPlugin from 'eslint-plugin-import';
 
 export default defineConfig([
   globalIgnores(['src-tauri/', 'dist/', 'coverage/']),
@@ -34,6 +35,8 @@ export default defineConfig([
   tseslint.configs.strictTypeChecked,
   tseslint.configs.stylistic,
 
+  importPlugin.flatConfigs.recommended,
+  importPlugin.flatConfigs.typescript,
   cspellESLintPluginRecommended,
   pluginReact.configs.flat.recommended,
   pluginReact.configs.flat['jsx-runtime'],
@@ -42,6 +45,8 @@ export default defineConfig([
 
   {
     rules: {
+      'import/order': 'error',
+      'import/no-unresolved': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
