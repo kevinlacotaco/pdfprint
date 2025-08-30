@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { atom, createStore } from 'jotai';
 
-type PdfDetails = {
+interface PdfDetails {
   parent?: number | null;
   name: string;
   pages: number;
@@ -10,8 +10,14 @@ type PdfDetails = {
   size: number;
   type: 'pdf';
   id: number;
-};
-type Dir = { parent?: number | null; name: string; type: 'dir'; id: number; path: string };
+}
+interface Dir {
+  parent?: number | null;
+  name: string;
+  type: 'dir';
+  id: number;
+  path: string;
+}
 
 type Entries = PdfDetails | Dir;
 
@@ -64,12 +70,12 @@ const setupEvents = async (store: ReturnType<typeof createStore>) => {
       const pdfMessage = event.payload.entries;
 
       store.set(pdfAtom, (prev) => {
-        return (prev ?? []).concat(pdfMessage);
+        return [...(prev ?? []), ...pdfMessage];
       });
     });
 
     // After all events have been added, let the backend know we are fully ready
-    invoke('frontend_ready');
+    void invoke('frontend_ready');
   } catch (error) {
     console.error('Error setting up events', error);
   }

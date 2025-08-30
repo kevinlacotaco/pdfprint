@@ -2,17 +2,18 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import svgr from 'vite-plugin-svgr';
-import { resolve } from 'path';
+import path from 'node:path';
 
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
+// eslint-disable-next-line @typescript-eslint/require-await
 export default defineConfig(async () => ({
   plugins: [react(), tailwindcss(), svgr()],
 
   resolve: {
     alias: {
-      icons: resolve('src/assets/icons'),
+      icons: path.resolve('src/assets/icons'),
     },
   },
 

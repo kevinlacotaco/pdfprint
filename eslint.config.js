@@ -1,13 +1,14 @@
 import js from '@eslint/js';
 import pluginReact from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
-import { defineConfig } from 'eslint/config';
+import { defineConfig, globalIgnores } from 'eslint/config';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import cspellESLintPluginRecommended from '@cspell/eslint-plugin/recommended';
 import eslintPluginUnicorn from 'eslint-plugin-unicorn';
 
 export default defineConfig([
+  globalIgnores(['src-tauri/', 'dist/', 'coverage/']),
   {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     plugins: { js },
@@ -16,7 +17,7 @@ export default defineConfig([
       globals: globals.browser,
       parserOptions: {
         projectService: {
-          allowDefaultProject: ['*.js', '*.ts'],
+          allowDefaultProject: ['*.js', '.prettierrc.js'],
         },
         tsconfigRootDir: import.meta.dirname,
       },

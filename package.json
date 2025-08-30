@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "bump-version": "node ./scripts/bump-version",
+    "lint": "eslint",
     "test-fe": "vitest",
     "test-fe-cov": "vitest run --coverage"
   },
