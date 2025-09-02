@@ -7,8 +7,7 @@ import svgr from 'vite-plugin-svgr';
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
-// eslint-disable-next-line @typescript-eslint/require-await
-export default defineConfig(async () => ({
+export default defineConfig(() => ({
   plugins: [react(), tailwindcss(), svgr()],
 
   resolve: {
