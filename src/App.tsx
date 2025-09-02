@@ -1,5 +1,6 @@
 import {
   Column,
+  ColumnDef,
   createColumnHelper,
   ExpandedState,
   flexRender,
@@ -144,6 +145,7 @@ const DataTable = ({
   onUpdate,
 }: {
   tableData: EntriesWithChildren[];
+  columns: ColumnDef<EntriesWithChildren, never>[];
   onChange?: OnChangeFn<RowSelectionState> | undefined;
   onExpanded?: (data: string[]) => void;
   onCollapsed?: (data: string[]) => void;
@@ -392,6 +394,7 @@ function App() {
         {!isInitial && !emptyState && (
           <DataTable
             tableData={grouped}
+            columns={columns}
             state={{
               rowSelection:
                 data?.reduce((acc, id) => {
