@@ -6,9 +6,14 @@ import {
   getCoreRowModel,
   getExpandedRowModel,
   getSortedRowModel,
+  OnChangeFn,
   RowData,
   RowSelectionState,
   SortingState,
+  TableMeta,
+  TableOptions,
+  TableState,
+  Updater,
   useReactTable,
 } from '@tanstack/react-table';
 import { invoke } from '@tauri-apps/api/core';
@@ -16,17 +21,15 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import classNames from 'classnames';
 import IconArrowDown from 'icons/icon-cheveron-down-circle.svg?react';
 import IconArrowRight from 'icons/icon-cheveron-right-circle.svg?react';
-import { useAtom, useAtomValue } from 'jotai';
-import { atomWithReset, useResetAtom } from 'jotai/utils';
-import { useCallback, useEffect, useState } from 'react';
+import { useAtomValue } from 'jotai';
+import { useCallback, useState } from 'react';
 import './App.css';
 import { Button } from './components/button/Button';
 import { IndeterminateCheckbox } from './components/checkbox/IndeterminateCheckbox';
-import { EditableTextCell } from './components/table/EditableTextCell';
 import { HeaderCell } from './components/table/HeaderCell';
 import { NumberCell } from './components/table/NumberCell';
 import { TextCell } from './components/table/TextCell';
-import { EntriesWithChildren, groupedPdfs, pdfAtom } from './store';
+import { EntriesWithChildren, groupedPdfsAtom, pdfAtom, pdfsByIdAtom } from './store';
 import { parsePrintRange } from './utils/parse-print-range';
 import { Heading } from './components/heading/Heading';
 import { EmptyState } from './components/emptyState/EmptyState';
@@ -119,31 +122,7 @@ const columns = [
     },
     sortingFn: 'alphanumeric',
   }),
-  columnHelper.display({
-    size: 200,
-    maxSize: 200,
-    id: 'printRange',
-    header: () => {
-      return <HeaderCell title="Custom Pages" />;
-    },
-    cell: (properties) => {
-      const row = properties.row.original;
-      if (row.type === 'pdf') {
-        return <EditableTextCell {...properties} />;
-      }
-    },
-  }),
 ];
-
-interface PdfDetails {
-  name: string;
-  pages: number;
-  size: number;
-  type: 'pdf';
-  id: number;
-  path: string;
-  printRange?: string;
-}
 
 interface SerializedPdfDetails {
   name: string;
@@ -152,50 +131,49 @@ interface SerializedPdfDetails {
   printRange?: number[];
 }
 
-const rowSelectionAtom = atomWithReset<RowSelectionState>({});
-
 const DataTable = ({
   tableData,
   onChange,
   onExpanded,
   onCollapsed,
+  state,
+  getRowId = (row) => row.id.toString(),
+  getSubRows,
+  enableRowSelection,
+  getRowCanExpand,
+  onUpdate,
 }: {
   tableData: EntriesWithChildren[];
-  onChange?: (data: EntriesWithChildren[]) => void;
-  onExpanded?: (data: EntriesWithChildren[]) => void;
-  onCollapsed?: (data: EntriesWithChildren[]) => void;
+  onChange?: OnChangeFn<RowSelectionState> | undefined;
+  onExpanded?: (data: string[]) => void;
+  onCollapsed?: (data: string[]) => void;
+  state?: Partial<TableState> | undefined;
+  getRowId?: TableOptions<EntriesWithChildren>['getRowId'];
+  getSubRows?: TableOptions<EntriesWithChildren>['getSubRows'];
+  enableRowSelection?: TableOptions<EntriesWithChildren>['enableRowSelection'];
+  getRowCanExpand?: TableOptions<EntriesWithChildren>['getRowCanExpand'];
+  onUpdate?: TableMeta<EntriesWithChildren>['updateData'];
 }) => {
-  const [data, setData] = useState(tableData);
-
+  // Local component state, can be overridden by properties.
   const [sorting, setSorting] = useState<SortingState>([{ id: 'name', desc: false }]);
-  const [rowSelection, setRowSelection] = useAtom(rowSelectionAtom);
   const [expanded, setExpanded] = useState<ExpandedState>({});
-
-  useEffect(() => {
-    setData(tableData);
-  }, [tableData]);
 
   const table = useReactTable<EntriesWithChildren>({
     columns,
-    data,
+    data: tableData,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
-    getSubRows: (row) => {
-      if (row.type === 'dir' && row.children.length > 0) {
-        return row.children;
-      }
-      return;
-    },
-    getRowId: (row) => row.id.toString(),
+    getSubRows: getSubRows,
+    getRowId,
+    getRowCanExpand,
+
     state: {
       sorting,
-      rowSelection,
       expanded: expanded,
+      ...state,
     },
-    enableRowSelection: (row) => {
-      return row.original.type !== 'dir';
-    },
+    enableRowSelection,
     onSortingChange: setSorting,
     onExpandedChange: (updater) => {
       setExpanded((old) => {
@@ -205,21 +183,13 @@ const DataTable = ({
           return newValue;
         }
 
-        const rowModel = table.getRowModel().rowsById;
-
         if (onExpanded != null) {
-          const expandedKeys = Object.keys(newValue)
-            .filter((k) => !(k in old))
-            .map((k) => rowModel[k]?.original)
-            .filter((entry) => entry != null);
+          const expandedKeys = Object.keys(newValue).filter((k) => !(k in old));
           onExpanded(expandedKeys);
         }
 
         if (onCollapsed != null) {
-          const collapsedKeys = Object.keys(old)
-            .filter((k) => !(k in newValue))
-            .map((k) => rowModel[k]?.original)
-            .filter((entry) => entry != null);
+          const collapsedKeys = Object.keys(old).filter((k) => !(k in newValue));
 
           onCollapsed(collapsedKeys);
         }
@@ -227,37 +197,13 @@ const DataTable = ({
         return newValue;
       });
     },
-    getRowCanExpand: (row) => row.original.type === 'dir',
 
-    onRowSelectionChange: (updater) => {
-      setRowSelection((old) => {
-        const newValue = typeof updater === 'function' ? updater(old) : updater;
-
-        if (onChange != null) {
-          const rowsById = table.getRowModel().rowsById;
-
-          const objects = Object.keys(newValue)
-            .map((id) => rowsById[id]?.original)
-            .filter((entry) => entry != null);
-
-          onChange(objects);
-        }
-        return newValue;
-      });
-    },
+    onRowSelectionChange: onChange,
     meta: {
-      updateData: (rowIndex, columnId, value) => {
-        setData((old) => {
-          return old.map((row, index) => {
-            if (index === rowIndex) {
-              return {
-                ...(old[rowIndex] || ({} as EntriesWithChildren)),
-                [columnId]: value,
-              };
-            }
-            return row;
-          });
-        });
+      updateData: (id, columnId, value) => {
+        if (typeof onUpdate === 'function') {
+          onUpdate(id, columnId, value);
+        }
       },
     },
   });
@@ -328,28 +274,33 @@ const DataTable = ({
 
 function App() {
   const pdfs = useAtomValue(pdfAtom);
-  const grouped = useAtomValue(groupedPdfs);
+  const grouped = useAtomValue(groupedPdfsAtom);
+  const pdfsById = useAtomValue(pdfsByIdAtom);
   const isInitial = pdfs == null || grouped == null;
   const emptyState = pdfs != null && pdfs.length === 0 && grouped != null;
-  const [data, setData] = useState<PdfDetails[]>();
-  const resetRowSelection = useResetAtom(rowSelectionAtom);
+  const [data, setData] = useState<string[]>();
   const isDisabled = data == null || data.length === 0;
 
   const print = useCallback(() => {
     if (data != null) {
       void invoke('print_to_default', {
-        pdfs: data.map(({ printRange, ...detail }) => {
-          const serializedDetail: SerializedPdfDetails = detail;
-          if (printRange != null) {
-            serializedDetail.printRange = parsePrintRange(printRange);
-          }
-          return detail;
-        }),
+        pdfs: data
+          .map((id) => {
+            const pdf = pdfsById?.[id];
+            if (pdf != null && pdf.type === 'pdf') {
+              const { printRange, ...serializedDetail } = pdf;
+              if (printRange != null) {
+                (serializedDetail as SerializedPdfDetails).printRange = parsePrintRange(printRange);
+              }
+              return serializedDetail;
+            }
+          })
+          .filter((entry) => entry != null),
       });
 
-      resetRowSelection();
+      setData([]);
     }
-  }, [data, resetRowSelection]);
+  }, [data, pdfsById]);
 
   const saveToFolder = useCallback(() => {
     const callback = async () => {
@@ -362,23 +313,28 @@ function App() {
         ],
       });
 
-      if (file != null) {
+      if (file != null && data != null) {
         void invoke('save_to_file', {
           file: file,
-          pdfs: data?.map(({ printRange, ...detail }) => {
-            const serializedDetail: SerializedPdfDetails = detail;
-            if (printRange != null) {
-              serializedDetail.printRange = parsePrintRange(printRange);
-            }
-            return serializedDetail;
-          }),
+          pdfs: data
+            .map((id) => {
+              const pdf = pdfsById?.[id];
+              if (pdf != null && pdf.type === 'pdf') {
+                const { printRange, ...serializedDetail } = pdf;
+                if (printRange != null) {
+                  (serializedDetail as SerializedPdfDetails).printRange = parsePrintRange(printRange);
+                }
+                return serializedDetail;
+              }
+            })
+            .filter((entry) => entry != null),
         });
-        resetRowSelection();
+        setData([]);
       }
     };
 
     void callback();
-  }, [data, resetRowSelection]);
+  }, [data, pdfsById]);
 
   const selectFolder = useCallback(() => {
     const callback = async () => {
@@ -394,14 +350,35 @@ function App() {
     void callback();
   }, []);
 
-  const onExpanded = useCallback((entries: EntriesWithChildren[]) => {
-    void entries
-      .filter((entry) => entry.type === 'dir' && entry.children.length === 0)
-      .map((entry) => invoke('load_dir', { folder: entry.path }));
-  }, []);
+  const onExpanded = useCallback(
+    (entries: string[]) => {
+      if (pdfsById != null) {
+        void entries
+          .map((id) => pdfsById[id])
+          // Currently, will try to load the directory on each expand change.
+          .filter((entry) => entry != null && entry.type === 'dir')
+          .map((entry) => invoke('load_dir', { folder: entry.path }));
+      }
+    },
+    [pdfsById]
+  );
 
-  const onChange = useCallback((entries: EntriesWithChildren[]) => {
-    setData(entries.filter((entry) => entry.type === 'pdf'));
+  const onChange = useCallback((entries: Updater<RowSelectionState>) => {
+    if (typeof entries === 'function') {
+      setData((old) => {
+        const newVal = entries(
+          old?.reduce((acc, id) => {
+            acc[id] = true;
+
+            return acc;
+          }, {} as RowSelectionState) ?? {}
+        );
+
+        return Object.keys(newVal);
+      });
+    } else {
+      setData(Object.keys(entries));
+    }
   }, []);
 
   return (
@@ -412,7 +389,31 @@ function App() {
         </Heading>
       </header>
       <div className="flex-auto overflow-auto scroll-auto">
-        {!isInitial && !emptyState && <DataTable tableData={grouped} onChange={onChange} onExpanded={onExpanded} />}
+        {!isInitial && !emptyState && (
+          <DataTable
+            tableData={grouped}
+            state={{
+              rowSelection:
+                data?.reduce((acc, id) => {
+                  acc[id] = true;
+
+                  return acc;
+                }, {} as RowSelectionState) ?? {},
+            }}
+            enableRowSelection={(row) => {
+              return row.original.type !== 'dir';
+            }}
+            getRowCanExpand={(row) => row.original.type === 'dir'}
+            getSubRows={(row) => {
+              if (row.type === 'dir' && row.children.length > 0) {
+                return row.children;
+              }
+              return;
+            }}
+            onChange={onChange}
+            onExpanded={onExpanded}
+          />
+        )}
         {emptyState && (
           <EmptyState>
             <Heading level="2" align="center">
