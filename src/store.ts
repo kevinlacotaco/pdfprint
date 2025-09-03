@@ -4,6 +4,7 @@ import { atom, createStore } from 'jotai';
 
 interface PdfDetails {
   parent?: number | null;
+  printRange?: string; // Gets updated from the table meta
   name: string;
   pages: number;
   path: string;
@@ -19,13 +20,13 @@ interface Dir {
   path: string;
 }
 
-type Entries = PdfDetails | Dir;
+export type Entries = PdfDetails | Dir;
 
 export type EntriesWithChildren = DirWithChildren | PdfDetails;
 export type DirWithChildren = Dir & { children: EntriesWithChildren[] };
 
 export const pdfAtom = atom<Entries[] | null>(null);
-export const groupedPdfs = atom((get) => {
+export const groupedPdfsAtom = atom((get) => {
   const pdfs = get(pdfAtom);
 
   if (pdfs == null) {
@@ -63,6 +64,19 @@ export const groupedPdfs = atom((get) => {
 
   return [...map.values()];
 });
+export const pdfsByIdAtom = atom((get) => {
+  const pdfs = get(pdfAtom);
+
+  return pdfs?.reduce(
+    (acc, pdf) => {
+      acc[pdf.id] = pdf;
+
+      return acc;
+    },
+    {} as Record<string, Entries>
+  );
+});
+export const loadedDirsAtom = atom<Record<string, boolean>>({});
 
 const setupEvents = async (store: ReturnType<typeof createStore>) => {
   try {

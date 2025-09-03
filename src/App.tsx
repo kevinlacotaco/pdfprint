@@ -1,42 +1,22 @@
-import {
-  Column,
-  createColumnHelper,
-  ExpandedState,
-  flexRender,
-  getCoreRowModel,
-  getExpandedRowModel,
-  getSortedRowModel,
-  RowData,
-  RowSelectionState,
-  SortingState,
-  useReactTable,
-} from '@tanstack/react-table';
+import { createColumnHelper, RowSelectionState, Updater } from '@tanstack/react-table';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import classNames from 'classnames';
 import IconArrowDown from 'icons/icon-cheveron-down-circle.svg?react';
 import IconArrowRight from 'icons/icon-cheveron-right-circle.svg?react';
-import { useAtom, useAtomValue } from 'jotai';
-import { atomWithReset, useResetAtom } from 'jotai/utils';
-import { useCallback, useEffect, useState } from 'react';
+import { useAtomValue } from 'jotai';
+import { useAtomCallback } from 'jotai/utils';
+import { useCallback, useState } from 'react';
 import './App.css';
 import { Button } from './components/button/Button';
 import { IndeterminateCheckbox } from './components/checkbox/IndeterminateCheckbox';
-import { EditableTextCell } from './components/table/EditableTextCell';
+import { EmptyState } from './components/emptyState/EmptyState';
+import { Heading } from './components/heading/Heading';
+import { DataTable } from './components/table/DataTable';
 import { HeaderCell } from './components/table/HeaderCell';
 import { NumberCell } from './components/table/NumberCell';
 import { TextCell } from './components/table/TextCell';
-import { EntriesWithChildren, groupedPdfs, pdfAtom } from './store';
+import { Entries, EntriesWithChildren, groupedPdfsAtom, loadedDirsAtom, pdfAtom, pdfsByIdAtom } from './store';
 import { parsePrintRange } from './utils/parse-print-range';
-import { Heading } from './components/heading/Heading';
-import { EmptyState } from './components/emptyState/EmptyState';
-
-declare module '@tanstack/react-table' {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  interface TableMeta<TData extends RowData> {
-    updateData: (rowIndex: number, columnId: string, value: unknown) => void;
-  }
-}
 
 const columnHelper = createColumnHelper<EntriesWithChildren>();
 
@@ -119,31 +99,7 @@ const columns = [
     },
     sortingFn: 'alphanumeric',
   }),
-  columnHelper.display({
-    size: 200,
-    maxSize: 200,
-    id: 'printRange',
-    header: () => {
-      return <HeaderCell title="Custom Pages" />;
-    },
-    cell: (properties) => {
-      const row = properties.row.original;
-      if (row.type === 'pdf') {
-        return <EditableTextCell {...properties} />;
-      }
-    },
-  }),
 ];
-
-interface PdfDetails {
-  name: string;
-  pages: number;
-  size: number;
-  type: 'pdf';
-  id: number;
-  path: string;
-  printRange?: string;
-}
 
 interface SerializedPdfDetails {
   name: string;
@@ -152,204 +108,39 @@ interface SerializedPdfDetails {
   printRange?: number[];
 }
 
-const rowSelectionAtom = atomWithReset<RowSelectionState>({});
-
-const DataTable = ({
-  tableData,
-  onChange,
-  onExpanded,
-  onCollapsed,
-}: {
-  tableData: EntriesWithChildren[];
-  onChange?: (data: EntriesWithChildren[]) => void;
-  onExpanded?: (data: EntriesWithChildren[]) => void;
-  onCollapsed?: (data: EntriesWithChildren[]) => void;
-}) => {
-  const [data, setData] = useState(tableData);
-
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'name', desc: false }]);
-  const [rowSelection, setRowSelection] = useAtom(rowSelectionAtom);
-  const [expanded, setExpanded] = useState<ExpandedState>({});
-
-  useEffect(() => {
-    setData(tableData);
-  }, [tableData]);
-
-  const table = useReactTable<EntriesWithChildren>({
-    columns,
-    data,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
-    getSubRows: (row) => {
-      if (row.type === 'dir' && row.children.length > 0) {
-        return row.children;
+const serializePdfs = (pdfs: string[], pdfsById: Record<string, Entries> | undefined): SerializedPdfDetails[] => {
+  return pdfs
+    .map((id) => {
+      const pdf = pdfsById?.[id];
+      if (pdf != null && pdf.type === 'pdf') {
+        const { printRange, ...serializedDetail } = pdf;
+        if (printRange != null) {
+          (serializedDetail as SerializedPdfDetails).printRange = parsePrintRange(printRange);
+        }
+        return serializedDetail;
       }
-      return;
-    },
-    getRowId: (row) => row.id.toString(),
-    state: {
-      sorting,
-      rowSelection,
-      expanded: expanded,
-    },
-    enableRowSelection: (row) => {
-      return row.original.type !== 'dir';
-    },
-    onSortingChange: setSorting,
-    onExpandedChange: (updater) => {
-      setExpanded((old) => {
-        const newValue = typeof updater === 'function' ? updater(old) : updater;
-
-        if (typeof old === 'boolean' || typeof newValue === 'boolean') {
-          return newValue;
-        }
-
-        const rowModel = table.getRowModel().rowsById;
-
-        if (onExpanded != null) {
-          const expandedKeys = Object.keys(newValue)
-            .filter((k) => !(k in old))
-            .map((k) => rowModel[k]?.original)
-            .filter((entry) => entry != null);
-          onExpanded(expandedKeys);
-        }
-
-        if (onCollapsed != null) {
-          const collapsedKeys = Object.keys(old)
-            .filter((k) => !(k in newValue))
-            .map((k) => rowModel[k]?.original)
-            .filter((entry) => entry != null);
-
-          onCollapsed(collapsedKeys);
-        }
-
-        return newValue;
-      });
-    },
-    getRowCanExpand: (row) => row.original.type === 'dir',
-
-    onRowSelectionChange: (updater) => {
-      setRowSelection((old) => {
-        const newValue = typeof updater === 'function' ? updater(old) : updater;
-
-        if (onChange != null) {
-          const rowsById = table.getRowModel().rowsById;
-
-          const objects = Object.keys(newValue)
-            .map((id) => rowsById[id]?.original)
-            .filter((entry) => entry != null);
-
-          onChange(objects);
-        }
-        return newValue;
-      });
-    },
-    meta: {
-      updateData: (rowIndex, columnId, value) => {
-        setData((old) => {
-          return old.map((row, index) => {
-            if (index === rowIndex) {
-              return {
-                ...(old[rowIndex] || ({} as EntriesWithChildren)),
-                [columnId]: value,
-              };
-            }
-            return row;
-          });
-        });
-      },
-    },
-  });
-
-  const getTitle = (column: Column<EntriesWithChildren>) => {
-    if (column.getCanSort()) {
-      if (column.getNextSortingOrder() === 'asc') {
-        return 'Sort ascending';
-      }
-      if (column.getNextSortingOrder() === 'desc') {
-        return 'Sort descending';
-      }
-
-      return 'Clear sort';
-    }
-
-    return;
-  };
-
-  return (
-    <table className="border-separate border-spacing-0 w-full max-w-full table-fixed">
-      <thead className="sticky left-0 top-0 z-20 bg-gray-400">
-        {table.getHeaderGroups().map((headerGroup) => (
-          <tr key={headerGroup.id}>
-            {headerGroup.headers.map((header) => {
-              return (
-                <th key={header.id} className=" whitespace-nowrap" style={{ width: header.column.columnDef.size }}>
-                  {header.isPlaceholder ? null : (
-                    <div
-                      className={classNames('w-full items-center justify-center flex', {
-                        'cursor-pointer select-none': header.column.getCanSort(),
-                      })}
-                      onClick={header.column.getToggleSortingHandler()}
-                      title={getTitle(header.column)}
-                    >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </div>
-                  )}
-                </th>
-              );
-            })}
-          </tr>
-        ))}
-      </thead>
-      <tbody>
-        {table.getRowModel().rows.map((row) => (
-          <tr
-            key={row.id}
-            onClick={row.getToggleSelectedHandler()}
-            className={classNames(
-              {
-                'cursor-pointer': row.getCanSelect(),
-                'odd:bg-white even:bg-gray-200': !row.getIsSelected(),
-                'odd:bg-blue-100 even:bg-blue-200': row.getIsSelected(),
-              },
-              'h-15'
-            )}
-          >
-            {row.getVisibleCells().map((cell) => (
-              <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+    })
+    .filter((entry) => entry != null);
 };
 
 function App() {
   const pdfs = useAtomValue(pdfAtom);
-  const grouped = useAtomValue(groupedPdfs);
+  const grouped = useAtomValue(groupedPdfsAtom);
+  const pdfsById = useAtomValue(pdfsByIdAtom);
   const isInitial = pdfs == null || grouped == null;
   const emptyState = pdfs != null && pdfs.length === 0 && grouped != null;
-  const [data, setData] = useState<PdfDetails[]>();
-  const resetRowSelection = useResetAtom(rowSelectionAtom);
+  const [data, setData] = useState<string[]>();
   const isDisabled = data == null || data.length === 0;
 
   const print = useCallback(() => {
     if (data != null) {
       void invoke('print_to_default', {
-        pdfs: data.map(({ printRange, ...detail }) => {
-          const serializedDetail: SerializedPdfDetails = detail;
-          if (printRange != null) {
-            serializedDetail.printRange = parsePrintRange(printRange);
-          }
-          return detail;
-        }),
+        pdfs: serializePdfs(data, pdfsById),
       });
 
-      resetRowSelection();
+      setData([]);
     }
-  }, [data, resetRowSelection]);
+  }, [data, pdfsById]);
 
   const saveToFolder = useCallback(() => {
     const callback = async () => {
@@ -362,23 +153,17 @@ function App() {
         ],
       });
 
-      if (file != null) {
+      if (file != null && data != null) {
         void invoke('save_to_file', {
           file: file,
-          pdfs: data?.map(({ printRange, ...detail }) => {
-            const serializedDetail: SerializedPdfDetails = detail;
-            if (printRange != null) {
-              serializedDetail.printRange = parsePrintRange(printRange);
-            }
-            return serializedDetail;
-          }),
+          pdfs: serializePdfs(data, pdfsById),
         });
-        resetRowSelection();
+        setData([]);
       }
     };
 
     void callback();
-  }, [data, resetRowSelection]);
+  }, [data, pdfsById]);
 
   const selectFolder = useCallback(() => {
     const callback = async () => {
@@ -394,14 +179,48 @@ function App() {
     void callback();
   }, []);
 
-  const onExpanded = useCallback((entries: EntriesWithChildren[]) => {
-    void entries
-      .filter((entry) => entry.type === 'dir' && entry.children.length === 0)
-      .map((entry) => invoke('load_dir', { folder: entry.path }));
-  }, []);
+  const onExpanded = useAtomCallback(
+    useCallback(
+      (get, set, entries: string[]) => {
+        const loadedPdfs = get(loadedDirsAtom);
 
-  const onChange = useCallback((entries: EntriesWithChildren[]) => {
-    setData(entries.filter((entry) => entry.type === 'pdf'));
+        if (pdfsById != null) {
+          void entries
+            .map((id) => pdfsById[id])
+            .filter((entry): entry is Entries => {
+              const loaded = (entry != null && loadedPdfs[entry.id.toString()]) ?? false;
+              return entry != null && entry.type === 'dir' && !loaded;
+            })
+            .map((entry) => {
+              return invoke('load_dir', { folder: entry.path }).then(() => {
+                set(loadedDirsAtom, {
+                  ...loadedPdfs,
+                  [entry.id.toString()]: true,
+                });
+              });
+            });
+        }
+      },
+      [pdfsById]
+    )
+  );
+
+  const onChange = useCallback((entries: Updater<RowSelectionState>) => {
+    if (typeof entries === 'function') {
+      setData((old) => {
+        const newVal = entries(
+          old?.reduce((acc, id) => {
+            acc[id] = true;
+
+            return acc;
+          }, {} as RowSelectionState) ?? {}
+        );
+
+        return Object.keys(newVal);
+      });
+    } else {
+      setData(Object.keys(entries));
+    }
   }, []);
 
   return (
@@ -412,7 +231,32 @@ function App() {
         </Heading>
       </header>
       <div className="flex-auto overflow-auto scroll-auto">
-        {!isInitial && !emptyState && <DataTable tableData={grouped} onChange={onChange} onExpanded={onExpanded} />}
+        {!isInitial && !emptyState && (
+          <DataTable
+            tableData={grouped}
+            columns={columns}
+            state={{
+              rowSelection:
+                data?.reduce((acc, id) => {
+                  acc[id] = true;
+
+                  return acc;
+                }, {} as RowSelectionState) ?? {},
+            }}
+            enableRowSelection={(row) => {
+              return row.original.type !== 'dir';
+            }}
+            getRowCanExpand={(row) => row.original.type === 'dir'}
+            getSubRows={(row) => {
+              if (row.type === 'dir' && row.children.length > 0) {
+                return row.children;
+              }
+              return;
+            }}
+            onChange={onChange}
+            onExpanded={onExpanded}
+          />
+        )}
         {emptyState && (
           <EmptyState>
             <Heading level="2" align="center">
