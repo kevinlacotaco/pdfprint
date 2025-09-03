@@ -32,7 +32,7 @@ export const NumberCell = ({ value, type = 'decimal', unit, fractionDigits = 0 }
   }
 
   return (
-    <div className="truncate p-1.5 text-right tabular-nums" title={formattedValue}>
+    <div className="truncate p-1.5 text-right tabular-nums w-full" title={formattedValue}>
       {formattedValue}
     </div>
   );

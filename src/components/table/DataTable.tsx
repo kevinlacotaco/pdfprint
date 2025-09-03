@@ -17,7 +17,11 @@ import {
 
 import classNames from 'classnames';
 
-import { useState } from 'react';
+import { ReactNode, useState } from 'react';
+import { CellContainer } from './CellContainer';
+import { HeaderCell } from './HeaderCell';
+import { NumberCell } from './NumberCell';
+import { TextCell } from './TextCell';
 
 export const DataTable = <T extends { id: string | number }>({
   tableData,
@@ -58,7 +62,32 @@ export const DataTable = <T extends { id: string | number }>({
     getSubRows: getSubRows,
     getRowId,
     getRowCanExpand,
+    defaultColumn: {
+      // Add a default header that gives us our styling we want.
+      header: ({ column }) => {
+        return <HeaderCell title={column.columnDef.meta?.title ?? ''} sorted={column.getIsSorted()} />;
+      },
+      cell: (cellContext) => {
+        const { getValue } = cellContext;
+        const value = getValue();
 
+        let child: ReactNode | null = null;
+
+        switch (typeof value) {
+          case 'string': {
+            child = <TextCell value={value}></TextCell>;
+            break;
+          }
+          case 'number': {
+            child = <NumberCell value={value} {...cellContext.column.columnDef.meta?.cellProps} />;
+            break;
+          }
+          default:
+        }
+
+        return <CellContainer context={cellContext}>{child}</CellContainer>;
+      },
+    },
     state: {
       sorting,
       expanded: expanded,

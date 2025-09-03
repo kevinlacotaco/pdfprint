@@ -1,20 +1,15 @@
 import { createColumnHelper, RowSelectionState, Updater } from '@tanstack/react-table';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import IconArrowDown from 'icons/icon-cheveron-down-circle.svg?react';
-import IconArrowRight from 'icons/icon-cheveron-right-circle.svg?react';
+
 import { useAtomValue } from 'jotai';
 import { useAtomCallback } from 'jotai/utils';
 import { useCallback, useState } from 'react';
 import './App.css';
 import { Button } from './components/button/Button';
-import { IndeterminateCheckbox } from './components/checkbox/IndeterminateCheckbox';
 import { EmptyState } from './components/emptyState/EmptyState';
 import { Heading } from './components/heading/Heading';
 import { DataTable } from './components/table/DataTable';
-import { HeaderCell } from './components/table/HeaderCell';
-import { NumberCell } from './components/table/NumberCell';
-import { TextCell } from './components/table/TextCell';
 import { Entries, EntriesWithChildren, groupedPdfsAtom, loadedDirsAtom, pdfAtom, pdfsByIdAtom } from './store';
 import { parsePrintRange } from './utils/parse-print-range';
 
@@ -24,39 +19,8 @@ const alphanumericCollator = new Intl.Collator('en', { numeric: true });
 const columns = [
   columnHelper.accessor('name', {
     size: 300,
-    header: (properties) => {
-      return <HeaderCell title="File Name" sorted={properties.column.getIsSorted()} />;
-    },
-    cell: ({ row, getValue }) => {
-      return (
-        <div
-          className="flex items-center px-2 space-x-2"
-          style={{
-            paddingLeft: row.depth == 0 ? undefined : `${(row.depth * 2).toFixed(0)}rem`,
-          }}
-        >
-          {row.original.type === 'pdf' && (
-            <IndeterminateCheckbox
-              {...{
-                checked: row.getIsSelected(),
-                disabled: !row.getCanSelect(),
-                indeterminate: row.getIsSomeSelected(),
-                onChange: row.getToggleSelectedHandler(),
-              }}
-            />
-          )}
-          {row.getCanExpand() && (
-            <button onClick={row.getToggleExpandedHandler()} className="cursor-pointer">
-              {row.getIsExpanded() ? (
-                <IconArrowDown className="inline w-4 h-4 text-gray-800 " />
-              ) : (
-                <IconArrowRight className="inline w-4 h-4 text-gray-800" />
-              )}
-            </button>
-          )}
-          <TextCell value={getValue()} />
-        </div>
-      );
+    meta: {
+      title: 'File Name',
     },
     sortingFn: (rowA, rowB) => {
       const origA = rowA.original;
@@ -74,28 +38,20 @@ const columns = [
   columnHelper.accessor('pages', {
     size: 100,
     maxSize: 100,
-    header: (properties) => {
-      return <HeaderCell title="Page Count" sorted={properties.column.getIsSorted()} />;
-    },
-    cell: (properties) => {
-      const row = properties.row.original;
-      if (row.type === 'pdf') {
-        return <NumberCell value={row.pages} />;
-      }
+    meta: {
+      title: 'Page Count',
     },
     sortingFn: 'alphanumeric',
   }),
   columnHelper.accessor('size', {
     size: 100,
     maxSize: 100,
-    header: (properties) => {
-      return <HeaderCell title="Size" sorted={properties.column.getIsSorted()} />;
-    },
-    cell: (properties) => {
-      const row = properties.row.original;
-      if (row.type === 'pdf') {
-        return <NumberCell type="unit" unit="byte" value={row.size} />;
-      }
+    meta: {
+      title: 'Size',
+      cellProps: {
+        type: 'unit',
+        unit: 'byte',
+      },
     },
     sortingFn: 'alphanumeric',
   }),
