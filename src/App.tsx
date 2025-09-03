@@ -4,6 +4,7 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import IconArrowDown from 'icons/icon-cheveron-down-circle.svg?react';
 import IconArrowRight from 'icons/icon-cheveron-right-circle.svg?react';
 import { useAtomValue } from 'jotai';
+import { useAtomCallback } from 'jotai/utils';
 import { useCallback, useState } from 'react';
 import './App.css';
 import { Button } from './components/button/Button';
@@ -14,7 +15,7 @@ import { DataTable } from './components/table/DataTable';
 import { HeaderCell } from './components/table/HeaderCell';
 import { NumberCell } from './components/table/NumberCell';
 import { TextCell } from './components/table/TextCell';
-import { EntriesWithChildren, groupedPdfsAtom, pdfAtom, pdfsByIdAtom } from './store';
+import { Entries, EntriesWithChildren, groupedPdfsAtom, loadedDirsAtom, pdfAtom, pdfsByIdAtom } from './store';
 import { parsePrintRange } from './utils/parse-print-range';
 
 const columnHelper = createColumnHelper<EntriesWithChildren>();
@@ -107,6 +108,21 @@ interface SerializedPdfDetails {
   printRange?: number[];
 }
 
+const serializePdfs = (pdfs: string[], pdfsById: Record<string, Entries> | undefined): SerializedPdfDetails[] => {
+  return pdfs
+    .map((id) => {
+      const pdf = pdfsById?.[id];
+      if (pdf != null && pdf.type === 'pdf') {
+        const { printRange, ...serializedDetail } = pdf;
+        if (printRange != null) {
+          (serializedDetail as SerializedPdfDetails).printRange = parsePrintRange(printRange);
+        }
+        return serializedDetail;
+      }
+    })
+    .filter((entry) => entry != null);
+};
+
 function App() {
   const pdfs = useAtomValue(pdfAtom);
   const grouped = useAtomValue(groupedPdfsAtom);
@@ -119,18 +135,7 @@ function App() {
   const print = useCallback(() => {
     if (data != null) {
       void invoke('print_to_default', {
-        pdfs: data
-          .map((id) => {
-            const pdf = pdfsById?.[id];
-            if (pdf != null && pdf.type === 'pdf') {
-              const { printRange, ...serializedDetail } = pdf;
-              if (printRange != null) {
-                (serializedDetail as SerializedPdfDetails).printRange = parsePrintRange(printRange);
-              }
-              return serializedDetail;
-            }
-          })
-          .filter((entry) => entry != null),
+        pdfs: serializePdfs(data, pdfsById),
       });
 
       setData([]);
@@ -151,18 +156,7 @@ function App() {
       if (file != null && data != null) {
         void invoke('save_to_file', {
           file: file,
-          pdfs: data
-            .map((id) => {
-              const pdf = pdfsById?.[id];
-              if (pdf != null && pdf.type === 'pdf') {
-                const { printRange, ...serializedDetail } = pdf;
-                if (printRange != null) {
-                  (serializedDetail as SerializedPdfDetails).printRange = parsePrintRange(printRange);
-                }
-                return serializedDetail;
-              }
-            })
-            .filter((entry) => entry != null),
+          pdfs: serializePdfs(data, pdfsById),
         });
         setData([]);
       }
@@ -185,17 +179,30 @@ function App() {
     void callback();
   }, []);
 
-  const onExpanded = useCallback(
-    (entries: string[]) => {
-      if (pdfsById != null) {
-        void entries
-          .map((id) => pdfsById[id])
-          // Currently, will try to load the directory on each expand change.
-          .filter((entry) => entry != null && entry.type === 'dir')
-          .map((entry) => invoke('load_dir', { folder: entry.path }));
-      }
-    },
-    [pdfsById]
+  const onExpanded = useAtomCallback(
+    useCallback(
+      (get, set, entries: string[]) => {
+        const loadedPdfs = get(loadedDirsAtom);
+
+        if (pdfsById != null) {
+          void entries
+            .map((id) => pdfsById[id])
+            .filter((entry): entry is Entries => {
+              const loaded = (entry != null && loadedPdfs[entry.id.toString()]) ?? false;
+              return entry != null && entry.type === 'dir' && !loaded;
+            })
+            .map((entry) => {
+              return invoke('load_dir', { folder: entry.path }).then(() => {
+                set(loadedDirsAtom, {
+                  ...loadedPdfs,
+                  [entry.id.toString()]: true,
+                });
+              });
+            });
+        }
+      },
+      [pdfsById]
+    )
   );
 
   const onChange = useCallback((entries: Updater<RowSelectionState>) => {

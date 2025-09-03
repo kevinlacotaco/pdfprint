@@ -20,7 +20,7 @@ interface Dir {
   path: string;
 }
 
-type Entries = PdfDetails | Dir;
+export type Entries = PdfDetails | Dir;
 
 export type EntriesWithChildren = DirWithChildren | PdfDetails;
 export type DirWithChildren = Dir & { children: EntriesWithChildren[] };
@@ -76,6 +76,7 @@ export const pdfsByIdAtom = atom((get) => {
     {} as Record<string, Entries>
   );
 });
+export const loadedDirsAtom = atom<Record<string, boolean>>({});
 
 const setupEvents = async (store: ReturnType<typeof createStore>) => {
   try {
