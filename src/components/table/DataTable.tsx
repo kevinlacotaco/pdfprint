@@ -67,26 +67,24 @@ export const DataTable = <T extends { id: string | number }>({
     enableRowSelection,
     onSortingChange: setSorting,
     onExpandedChange: (updater) => {
-      setExpanded((old) => {
-        const newValue = typeof updater === 'function' ? updater(old) : updater;
+      const newValue = typeof updater === 'function' ? updater(expanded) : updater;
 
-        if (typeof old === 'boolean' || typeof newValue === 'boolean') {
-          return newValue;
-        }
-
-        if (onExpanded != null) {
-          const expandedKeys = Object.keys(newValue).filter((k) => !(k in old));
-          onExpanded(expandedKeys);
-        }
-
-        if (onCollapsed != null) {
-          const collapsedKeys = Object.keys(old).filter((k) => !(k in newValue));
-
-          onCollapsed(collapsedKeys);
-        }
-
+      if (typeof expanded === 'boolean' || typeof newValue === 'boolean') {
         return newValue;
-      });
+      }
+
+      if (onExpanded != null) {
+        const expandedKeys = Object.keys(newValue).filter((k) => !(k in expanded));
+        onExpanded(expandedKeys);
+      }
+
+      if (onCollapsed != null) {
+        const collapsedKeys = Object.keys(expanded).filter((k) => !(k in newValue));
+
+        onCollapsed(collapsedKeys);
+      }
+
+      setExpanded(newValue);
     },
 
     onRowSelectionChange: onChange,
