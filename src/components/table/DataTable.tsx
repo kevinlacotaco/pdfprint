@@ -23,7 +23,7 @@ import { HeaderCell } from './HeaderCell';
 import { NumberCell } from './NumberCell';
 import { TextCell } from './TextCell';
 
-export const DataTable = <T extends { id: string | number }>({
+export const DataTable = <T extends { id: number }>({
   tableData,
   columns,
   onChange,
@@ -34,6 +34,7 @@ export const DataTable = <T extends { id: string | number }>({
   getSubRows,
   enableRowSelection,
   getRowCanExpand,
+  onFocusChange,
   onUpdate,
 }: {
   tableData: T[];
@@ -48,6 +49,7 @@ export const DataTable = <T extends { id: string | number }>({
   enableRowSelection?: TableOptions<T>['enableRowSelection'];
   getRowCanExpand?: TableOptions<T>['getRowCanExpand'];
   onUpdate?: TableMeta<T>['updateData'];
+  onFocusChange?: (rowId: number | null) => void;
 }) => {
   // Local component state, can be overridden by properties.
   const [sorting, setSorting] = useState<SortingState>([{ id: 'name', desc: false }]);
@@ -63,7 +65,6 @@ export const DataTable = <T extends { id: string | number }>({
     getRowId,
     getRowCanExpand,
     defaultColumn: {
-      // Add a default header that gives us our styling we want.
       header: ({ column }) => {
         return <HeaderCell title={column.columnDef.meta?.title ?? ''} sorted={column.getIsSorted()} />;
       },
@@ -171,6 +172,11 @@ export const DataTable = <T extends { id: string | number }>({
           <tr
             key={row.id}
             onClick={row.getToggleSelectedHandler()}
+            onMouseDown={() => {
+              if (onFocusChange != null) {
+                onFocusChange(row.original.id);
+              }
+            }}
             className={classNames(
               {
                 'cursor-pointer': row.getCanSelect(),

@@ -77,7 +77,7 @@ export const pdfsByIdAtom = atom((get) => {
   );
 });
 export const loadedDirsAtom = atom<Record<string, boolean>>({});
-
+export const focusedPdf = atom<Entries['id'] | null>(null);
 const setupEvents = async (store: ReturnType<typeof createStore>) => {
   try {
     await listen<{ folder: string; entries: Entries[] }>('folder-processed', (event) => {
