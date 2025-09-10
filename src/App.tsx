@@ -2,7 +2,8 @@ import { createColumnHelper, RowSelectionState, Updater } from '@tanstack/react-
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 
-import { useAtomValue } from 'jotai';
+import { revealItemInDir } from '@tauri-apps/plugin-opener';
+import { useAtom, useAtomValue } from 'jotai';
 import { useAtomCallback } from 'jotai/utils';
 import { useCallback, useState } from 'react';
 import './App.css';
@@ -10,7 +11,16 @@ import { Button } from './components/button/Button';
 import { EmptyState } from './components/emptyState/EmptyState';
 import { Heading } from './components/heading/Heading';
 import { DataTable } from './components/table/DataTable';
-import { Entries, EntriesWithChildren, groupedPdfsAtom, loadedDirsAtom, pdfAtom, pdfsByIdAtom } from './store';
+import { RightClickMenu } from './components/table/RightClickMenuWrapper';
+import {
+  Entries,
+  EntriesWithChildren,
+  focusedPdf,
+  groupedPdfsAtom,
+  loadedDirsAtom,
+  pdfAtom,
+  pdfsByIdAtom,
+} from './store';
 import { parsePrintRange } from './utils/parse-print-range';
 
 const columnHelper = createColumnHelper<EntriesWithChildren>();
@@ -87,6 +97,7 @@ function App() {
   const emptyState = pdfs != null && pdfs.length === 0 && grouped != null;
   const [data, setData] = useState<string[]>();
   const isDisabled = data == null || data.length === 0;
+  const [focus, setFocus] = useAtom(focusedPdf);
 
   const print = useCallback(() => {
     if (data != null) {
@@ -179,6 +190,33 @@ function App() {
     }
   }, []);
 
+  const actions = [
+    {
+      type: 'action' as const,
+      id: 'open_containing_folder',
+      text: 'Open Containing Folder',
+      action: () => {
+        if (focus != null && pdfsById != null) {
+          const pdf = pdfsById[focus];
+          if (pdf != null) {
+            void revealItemInDir([pdf.path]);
+          }
+        }
+      },
+    },
+    {
+      type: 'separator' as const,
+    },
+    {
+      type: 'action' as const,
+      id: 'reload',
+      text: 'Reload',
+      action: () => {
+        globalThis.location.reload();
+      },
+    },
+  ];
+
   return (
     <main className="flex flex-col h-screen bg-gray-100 items-stretch">
       <header className="w-full items-center justify-center shrink-0 grow-0 basis-0">
@@ -188,30 +226,35 @@ function App() {
       </header>
       <div className="flex-auto overflow-auto scroll-auto">
         {!isInitial && !emptyState && (
-          <DataTable
-            tableData={grouped}
-            columns={columns}
-            state={{
-              rowSelection:
-                data?.reduce((acc, id) => {
-                  acc[id] = true;
+          <RightClickMenu actions={actions}>
+            <DataTable
+              tableData={grouped}
+              columns={columns}
+              state={{
+                rowSelection:
+                  data?.reduce((acc, id) => {
+                    acc[id] = true;
 
-                  return acc;
-                }, {} as RowSelectionState) ?? {},
-            }}
-            enableRowSelection={(row) => {
-              return row.original.type !== 'dir';
-            }}
-            getRowCanExpand={(row) => row.original.type === 'dir'}
-            getSubRows={(row) => {
-              if (row.type === 'dir' && row.children.length > 0) {
-                return row.children;
-              }
-              return;
-            }}
-            onChange={onChange}
-            onExpanded={onExpanded}
-          />
+                    return acc;
+                  }, {} as RowSelectionState) ?? {},
+              }}
+              enableRowSelection={(row) => {
+                return row.original.type !== 'dir';
+              }}
+              getRowCanExpand={(row) => row.original.type === 'dir'}
+              getSubRows={(row) => {
+                if (row.type === 'dir' && row.children.length > 0) {
+                  return row.children;
+                }
+                return;
+              }}
+              onFocusChange={(id) => {
+                setFocus(id);
+              }}
+              onChange={onChange}
+              onExpanded={onExpanded}
+            />
+          </RightClickMenu>
         )}
         {emptyState && (
           <EmptyState>
